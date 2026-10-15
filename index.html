@@ -675,6 +675,19 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       </tbody></table></div></section>`;
   }
 
+  // A row of PONDERATION-JURY that matches nothing leaves its criterion at weight 1:
+  // invisible, and it changes every average. So say which rows were dropped.
+  function warnWeights() {
+    const bad = cfg.weightProblems || [];
+    if (!bad.length) return '';
+    const why = p => p.why === 'jury' ? `no jury called “${esc(p.jury)}”`
+      : p.why === 'criterion' ? `no criterion called “${esc(p.criterion)}” in ${esc(p.jury)}`
+      : `“${esc(p.weight)}” is not a weight above 0`;
+    const show = bad.slice(0, 3).map(p => `row ${p.row}: ${why(p)}`).join('; ');
+    const rest = bad.length > 3 ? `, and ${bad.length - 3} more` : '';
+    return `<div class="banner">PONDERATION-JURY: ${bad.length} row${bad.length > 1 ? 's' : ''} ignored, so ${bad.length > 1 ? 'those criteria keep' : 'that criterion keeps'} a weight of 1 — ${show}${rest}.</div>`;
+  }
+
   function viewEnsemble() {
     const opts = [...cfg.juries.map(j => [j.id, j.name]), ['all', 'Overall ranking']];
     if (!opts.some(o => o[0] === ui.ovJury) && ui.ovJury !== 'both') ui.ovJury = cfg.juries.length > 1 ? 'both' : cfg.juries[0].id;
@@ -698,7 +711,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     } else if (ui.ovJury === 'both') {
       body = cfg.juries.map(juryTable).join('');
     } else body = juryTable(juryOf(ui.ovJury));
-    return tools + body;
+    return warnWeights() + tools + body;
   }
 
   function viewEquipe() {

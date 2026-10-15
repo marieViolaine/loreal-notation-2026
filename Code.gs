@@ -31,6 +31,7 @@ const JURY_PREFIX = /^\s*jury\b/i;
 const STOP_HEADERS = /^(average|moyenne|completion|compl[eé]tion|total|rang|rank)$/i;
 const NOTES_SHEET = 'APP_NOTES';
 const CONFIG_SHEET = 'APP_CONFIG';
+const WEIGHT_SHEET = 'PONDERATION-JURY'; // NOM_CRITERE | JURY | PONDERATION
 const WRITE_BACK = true; // also write scores into the "Jury N" tabs
 const MAX_CRIT = 10;
 const DEFAULT_HASH = 'eb84789239978c5b66ad35a3d0a816b214a1144b44060af4f6be6b5a6c31c7a3'; // "organisateur"
@@ -173,10 +174,54 @@ function readJuries() {
   return out;
 }
 
+/** Matches the JURY column against a jury, accepting "JURY F", "F" or "jury f". */
+function matchJury(juries, name) {
+  const q = norm(name);
+  if (!q) return null;
+  const bare = t => norm(t).replace(/^jury\s*/, '');
+  return juries.filter(J => norm(J.name) === q)[0]
+      || juries.filter(J => bare(J.name) === bare(q))[0]
+      || null;
+}
+
+/**
+ * Per-jury, per-criterion weights read from the PONDERATION-JURY tab.
+ *
+ * Returns the weights keyed "<juryId>|<critId>", plus the rows it could not
+ * match: a mistyped criterion name would otherwise silently leave that
+ * criterion at weight 1, which is invisible and changes every average.
+ */
+function readWeights(juries) {
+  const out = { byKey: {}, ignored: [] };
+  const sh = doc().getSheetByName(WEIGHT_SHEET);
+  if (!sh) return out;
+  const lastRow = sh.getLastRow(), lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 3) return out;
+  const data = sh.getRange(2, 1, lastRow - 1, 3).getDisplayValues();
+  data.forEach((r, i) => {
+    const cname = String(r[0] || '').trim();
+    const jname = String(r[1] || '').trim();
+    const raw = String(r[2] || '').trim().replace(',', '.'); // a French locale shows 0,25
+    if (!cname && !jname && !raw) return; // blank filler row
+    const w = parseFloat(raw);
+    const J = matchJury(juries, jname);
+    const c = J ? J.criteria.filter(x => norm(x.name) === norm(cname))[0] : null;
+    if (!J || !c || !isFinite(w) || w <= 0) {
+      out.ignored.push({ row: i + 2, criterion: cname, jury: jname, weight: raw,
+        why: !J ? 'jury' : !c ? 'criterion' : 'weight' });
+      return;
+    }
+    out.byKey[J.id + '|' + c.id] = w;
+  });
+  return out;
+}
+
 /** Configuration sent to the page: spreadsheet structure + page settings. */
 function buildConfig(juries) {
   const st = readSettings();
+  const W = readWeights(juries);
   return {
+    weightProblems: W.ignored,
     source: 'sheet',
     title: st.title, scale: st.scale, locked: !!st.locked, closed: !!st.closed,
     juries: juries.map(J => ({
@@ -185,7 +230,11 @@ function buildConfig(juries) {
       seats: J.seats, free: Math.max(0, J.seats - J.members.length),
       criteria: J.criteria.map(c => {
         const o = ((st.crit || {})[J.id] || {})[c.id] || {};
-        return { id: c.id, name: c.name, desc: o.desc || '', weight: +o.weight > 0 ? +o.weight : 1 };
+        // The PONDERATION-JURY tab wins over whatever the Settings page stored:
+        // the spreadsheet is the source of truth.
+        const fromSheet = W.byKey[J.id + '|' + c.id];
+        return { id: c.id, name: c.name, desc: o.desc || '',
+          weight: fromSheet != null ? fromSheet : (+o.weight > 0 ? +o.weight : 1) };
       })
     }))
   };
