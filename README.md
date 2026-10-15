@@ -57,7 +57,13 @@ toute requête renvoie « Accès refusé — Une autorisation est nécessaire »
 - **Jurés** : ils tapent le début de leur prénom et touchent leur nom. Aucun compte requis.
 - **Organisateur** : taper le mot de passe à la place d'un prénom ouvre le menu **Réglages**
   (jurys, membres, équipes, critères, échelle, clôture). Mot de passe par défaut : `organisateur`, à changer dans Réglages → Accès organisateur.
-- **Vue d'ensemble / Par équipe** : classement et récapitulatif, actualisés toutes les 10 s, export CSV.
+- **Vue d'ensemble / Par équipe / Par juré** : classement, récapitulatif par équipe et récapitulatif
+  par juré, actualisés toutes les 10 s, export CSV.
+
+La vue **Par juré** remplace les onglets `Pax N` du tableur : un juré, ses 12 équipes, ses critères,
+sa moyenne et ses commentaires. Elle est calculée dans le navigateur à partir de données déjà
+chargées, donc elle ne coûte **aucune requête** — un `JURY 1` entièrement noté, c'est ~18 Ko.
+Les onglets `Pax N` peuvent être supprimés : rien ne les alimente et plus rien n'en dépend.
 
 ## Réseau instable
 

@@ -271,14 +271,14 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     if (!j.ok) throw { code: j.error || 'refused' };
     return j;
   }
-  const TABS = [['noter', 'Score'], ['ensemble', 'Overview'], ['equipe', 'By team']];
-  const LABELS = { noter: 'Score', ensemble: 'Overview', equipe: 'By team', reglages: 'Settings' };
+  const TABS = [['noter', 'Score'], ['ensemble', 'Overview'], ['equipe', 'By team'], ['jure', 'By juror']];
+  const LABELS = { noter: 'Score', ensemble: 'Overview', equipe: 'By team', jure: 'By juror', reglages: 'Settings' };
 
   const store = {
     get(k, d) { try { const v = localStorage.getItem('nj.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem('nj.' + k, JSON.stringify(v)); } catch {} }
   };
-  const ui = Object.assign({ tab: 'noter', juryId: null, memberId: null, teamId: null, ovJury: null, tJury: null, tTeam: null, prov: false, admin: false, adminKey: null }, store.get('ui', {}));
+  const ui = Object.assign({ tab: 'noter', juryId: null, memberId: null, teamId: null, ovJury: null, tJury: null, tTeam: null, jJury: null, jMember: null, prov: false, admin: false, adminKey: null }, store.get('ui', {}));
   const saveUi = () => store.set('ui', ui);
   pending = store.get('pending', {}) || {};
   const savePending = () => store.set('pending', pending);
@@ -659,6 +659,36 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       </section>`;
   }
 
+  // One juror, every team: what the per-juror "Pax" spreadsheet tabs used to show.
+  // Built from data the page already holds, so it costs no extra request.
+  function viewJure() {
+    const J = juryOf(ui.jJury); ui.jJury = J.id;
+    if (!J.members.length) return `<div class="card empty"><h3>No jury member for this jury</h3><p class="muted">Column B of the \u201c${esc(J.name)}\u201d tab is empty.</p></div>`;
+    if (!J.teams.length) return `<div class="card empty"><h3>No teams for this jury</h3></div>`;
+    const m = J.members.find(x => x.id === ui.jMember) || J.members[0]; ui.jMember = m.id;
+    const rows = J.teams.map(t => ({ t, st: memberStat(J, m, t) }));
+    const total = J.teams.length * J.criteria.length;
+    const filled = rows.reduce((a, r) => a + r.st.filled, 0);
+    const done = rows.filter(r => r.st.complete).length;
+    const avg = mean(rows.filter(r => r.st.avg != null).map(r => r.st.avg));
+    const chips = J.members.map(x => `<button class="chip" data-act="j-member" data-id="${esc(x.id)}" aria-current="${x.id === m.id}">${esc(x.name)}</button>`).join('');
+    const grid = `<div class="tscroll"><table><thead><tr><th class="l">Team</th>${J.criteria.map(c => `<th>${esc(c.name)}${weight(c) !== 1 ? ` <span class="coef">\u00d7${weight(c)}</span>` : ''}</th>`).join('')}<th>Average</th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td class="l"><b>${esc(r.t.name)}</b></td>${J.criteria.map(c => `<td><span class="heat" style="display:inline-block;min-width:36px;padding:4px 6px;${heat(r.st.vals[c.id])}">${isNum(r.st.vals[c.id]) ? r.st.vals[c.id] : '<span class="muted">\u00b7</span>'}</span></td>`).join('')}<td class="avg">${fmt(r.st.avg)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+    const comments = rows.filter(r => r.st.comment.trim());
+    return `<div class="row between">${cfg.juries.length > 1 ? jurySelect('j-jury', J.id) : ''}<div class="chips" aria-label="Jury members">${chips}</div></div>
+      <section class="card stack">
+        <div class="row between"><div class="teamhead"><span class="eyebrow">Scores given \u00b7 ${esc(J.name)}</span><h2>${esc(m.name)}</h2></div>
+          <div class="kpis"><div class="kpi"><b>${avg != null ? fmt(avg) + ' / ' + scale().max : '\u2013'}</b><span>average given</span></div>
+          <div class="kpi"><b>${done}/${J.teams.length}</b><span>teams fully scored</span></div>
+          <div class="kpi"><b>${filled}/${total}</b><span>scores entered</span></div></div></div>
+        ${grid}
+      </section>
+      <section class="card stack"><h3>Comments left</h3>
+        ${comments.length ? `<div class="comments">${comments.map(r => `<div class="comment"><b>Team ${esc(r.t.name)}</b><p>${esc(r.st.comment)}</p></div>`).join('')}</div>` : '<p class="muted" style="margin:0">No comments.</p>'}
+      </section>`;
+  }
+
   function viewReglages() {
     if (!draft) { draft = JSON.parse(JSON.stringify(cfg)); draftDirty = false; }
     const lock = !!draft.locked;
@@ -717,11 +747,11 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const a = document.activeElement, keep = a && a.id && a.closest('#app') ? { id: a.id, s: a.selectionStart, e: a.selectionEnd, v: a.value } : null;
     let html = mode === 'local' ? '<div class="banner">Local preview: scores are neither shared nor kept. Open the published page to score together.</div>'
       : (mode === 'shared' && !gotScores && syncFail && !cfg) ? '<div class="banner">Cannot reach the scoring server. Retrying automatically every 10 s.</div>' : '';
-    if ((ui.tab === 'ensemble' || ui.tab === 'equipe') && cfg) html += `<div class="fresh" id="fresh">${freshText()}</div>`;
+    if ((ui.tab === 'ensemble' || ui.tab === 'equipe' || ui.tab === 'jure') && cfg) html += `<div class="fresh" id="fresh">${freshText()}</div>`;
     if (!cfg && mode === 'shared' && !gotScores && !syncFail) html += '<div class="card empty"><h2>Loading scores…</h2><p class="muted">Connecting to the scoring server.</p></div>';
     else if (!cfg) html += viewEmpty();
     else if (!cfg.juries?.length && ui.tab !== 'reglages') html += '<div class="card empty"><h2>No jury found</h2><p class="muted">The spreadsheet has no tab whose name starts with “Jury”.</p></div>';
-    else html += ({ noter: viewNoter, ensemble: viewEnsemble, equipe: viewEquipe, reglages: viewReglages }[ui.tab] || viewNoter)();
+    else html += ({ noter: viewNoter, ensemble: viewEnsemble, equipe: viewEquipe, jure: viewJure, reglages: viewReglages }[ui.tab] || viewNoter)();
     $('#app').innerHTML = html;
     saveUi();
     if (keep) {
@@ -765,6 +795,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       case 'ov': ui.ovJury = el.dataset.id; render(); break;
       case 'open-team': ui.tJury = el.dataset.j; ui.tTeam = el.dataset.id; ui.tab = 'equipe'; render(); window.scrollTo(0, 0); break;
       case 't-team': ui.tTeam = el.dataset.id; render(); break;
+      case 'j-member': ui.jMember = el.dataset.id; render(); break;
       case 'export': exportCsv(); break;
       case 'add': {
         const [ji, key] = el.dataset.p.split('.');
@@ -845,6 +876,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     if (el.id === 'pick-jury') { ui.juryId = el.value; ui.memberId = null; ui.teamId = null; render(); }
     else if (el.id === 'pick-member') { ui.memberId = el.value || null; ui.teamId = null; render(); }
     else if (el.id === 't-jury') { ui.tJury = el.value; ui.tTeam = null; render(); }
+    else if (el.id === 'j-jury') { ui.jJury = el.value; ui.jMember = null; render(); }
     else if (el.id === 'prov') { ui.prov = el.checked; render(); }
   });
 
