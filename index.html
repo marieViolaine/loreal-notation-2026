@@ -560,7 +560,6 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     return `<section class="card stack login">
       <span class="eyebrow">${esc(J.name)} · ${esc(login.member.name)}</span>
       <h2>Which group do you start with?</h2>
-      <p class="muted" style="margin:0">Groups:</p>
       <div class="chips" aria-label="Groups">${J.teams.map(t => `<button class="chip" data-act="login-group" data-id="${esc(t.id)}">${esc(t.name)}</button>`).join('')}</div>
     </section>`;
   }
