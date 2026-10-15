@@ -33,12 +33,25 @@ Chaque note est d'abord enregistrée sur le téléphone, puis envoyée au serveu
 (voyant « en attente » dans l'en-tête) et part automatiquement au retour du réseau (nouvel essai toutes les 10 s).
 La page s'ouvre aussi hors ligne avec les dernières données connues.
 
-## Données dans le tableur
+## Le tableur est la source de vérité
 
-Le script crée deux onglets et ne touche pas aux autres :
+La liste des jurys, jurés, équipes et critères est lue **à chaque actualisation** dans le tableur :
 
-- `APP_NOTES` : une ligne par juré × équipe (jury, membre, équipe, notes, moyenne, commentaire). Les colonnes techniques A–G sont masquées.
-- `APP_CONFIG` : la configuration en JSON (cellule A1) — ne pas modifier à la main.
+- **Un jury = un onglet dont le nom commence par « Jury »** (`JURY 1`, `Jury 2`, `Jury 3 - finale`…). Ajouter un onglet de ce type ajoute un jury ; les autres onglets (`Pax 1`…) sont ignorés.
+- **Colonne A** : groupe (équipe). Valeurs distinctes, dans l'ordre d'apparition.
+- **Colonne B** : membre du jury. Valeurs distinctes, doublons et majuscules/accents ignorés.
+- **Ligne 1, colonnes C et suivantes** jusqu'à `Average` / `Moyenne` / `Completion` : les critères.
+
+Modifier le tableur suffit : la page se met à jour seule (10 s sur les écrans de synthèse, 30 s ailleurs).
+Attention : renommer un juré ou un groupe crée un nouvel identifiant ; les notes déjà saisies sous l'ancien nom ne lui sont plus rattachées.
+
+La page ne gère que : titre, échelle de notes, verrouillage, clôture, coefficients et descriptions des critères, mot de passe.
+
+### Où vont les notes
+
+- Dans la ligne (groupe, juré) de l'onglet `Jury N`, colonnes des critères : les formules existantes (Average, Completion, Pax…) restent à jour. Désactivable avec `WRITE_BACK = false` dans `Code.gs`.
+- Dans l'onglet `APP_NOTES` (créé automatiquement) : une ligne par juré × équipe, avec moyenne et commentaire. Les colonnes techniques A–G sont masquées.
+- Les réglages de la page sont dans l'onglet `APP_CONFIG` (créé automatiquement, ne pas modifier à la main).
 
 ## Limites
 

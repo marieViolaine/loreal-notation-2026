@@ -662,21 +662,25 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const lock = !!draft.locked;
     const dis = lock ? 'disabled' : '';
     const nScores = Object.keys(scores).length;
-    const list = (ji, key, ph) => `<div class="list">${draft.juries[ji][key].map((x, i) => `<div class="item"><input type="text" id="f-${ji}-${key}-${i}" value="${esc(x.name)}" data-edit="${ji}.${key}.${i}.name" aria-label="${ph} ${i + 1}" ${dis}><button class="x" data-act="rm" data-p="${ji}.${key}.${i}" aria-label="Retirer" ${dis}>×</button></div>`).join('')}
+    const sheet = draft.source === 'sheet';
+    const sdis = (sheet || lock) ? 'disabled' : '';
+    const list = (ji, key, ph) => sheet
+      ? `<div class="pills">${draft.juries[ji][key].map(x => `<span class="pill">${esc(x.name)}</span>`).join('') || '<span class="muted small">Aucun dans le tableur</span>'}</div>`
+      : `<div class="list">${draft.juries[ji][key].map((x, i) => `<div class="item"><input type="text" id="f-${ji}-${key}-${i}" value="${esc(x.name)}" data-edit="${ji}.${key}.${i}.name" aria-label="${ph} ${i + 1}" ${dis}><button class="x" data-act="rm" data-p="${ji}.${key}.${i}" aria-label="Retirer" ${dis}>×</button></div>`).join('')}
       <button class="btn ghost" data-act="add" data-p="${ji}.${key}" ${dis}>+ ${ph}</button></div>`;
     const juries = draft.juries.map((J, ji) => `<section class="card stack">
-      <div class="row between"><input type="text" id="f-${ji}-name" value="${esc(J.name)}" data-edit="${ji}.name" aria-label="Nom du jury" style="font:800 20px var(--font-display);flex:1 1 200px" ${dis}>
-        ${draft.juries.length > 1 ? `<button class="btn ghost danger" data-act="rm-jury" data-p="${ji}" ${dis}>Retirer ce jury</button>` : ''}</div>
+      <div class="row between">${sheet ? `<h2>${esc(J.name)}</h2><span class="muted small">Onglet « ${esc(J.name)} » du tableur</span>` : `<input type="text" id="f-${ji}-name" value="${esc(J.name)}" data-edit="${ji}.name" aria-label="Nom du jury" style="font:800 20px var(--font-display);flex:1 1 200px" ${dis}>`}
+        ${!sheet && draft.juries.length > 1 ? `<button class="btn ghost danger" data-act="rm-jury" data-p="${ji}" ${dis}>Retirer ce jury</button>` : ''}</div>
       <div class="cols">
-        <div class="stack"><h3>Membres (${J.members.length})</h3><p class="muted small" style="margin:0">Prénom, puis nom si besoin. Chaque juré se connecte avec son prénom.</p>${list(ji, 'members', 'Membre')}</div>
-        <div class="stack"><h3>Équipes (${J.teams.length})</h3>${list(ji, 'teams', 'Équipe')}</div>
-        <div class="stack"><h3>Critères (${J.criteria.length})</h3><p class="muted small" style="margin:0">Définis par le jury avant les présentations.</p>
+        <div class="stack"><h3>Membres (${J.members.length})</h3>${sheet ? '<p class="muted small" style="margin:0">Colonne B du tableur, doublons retirés.</p>' : '<p class="muted small" style="margin:0">Prénom, puis nom si besoin. Chaque juré se connecte avec son prénom.</p>'}${list(ji, 'members', 'Membre')}</div>
+        <div class="stack"><h3>Équipes (${J.teams.length})</h3>${sheet ? '<p class="muted small" style="margin:0">Colonne A du tableur.</p>' : ''}${list(ji, 'teams', 'Équipe')}</div>
+        <div class="stack"><h3>Critères (${J.criteria.length})</h3><p class="muted small" style="margin:0">${sheet ? "Noms : en-têtes du tableur. Coefficient et description se règlent ici." : 'Définis par le jury avant les présentations.'}</p>
           <div class="list">${J.criteria.map((c, i) => `<div class="critedit">
-            <div class="item"><input type="text" id="f-${ji}-c-${i}" value="${esc(c.name)}" data-edit="${ji}.criteria.${i}.name" aria-label="Nom du critère" ${dis}>
+            <div class="item"><input type="text" id="f-${ji}-c-${i}" value="${esc(c.name)}" data-edit="${ji}.criteria.${i}.name" aria-label="Nom du critère" ${sdis}>
             <input type="number" id="f-${ji}-w-${i}" value="${esc(c.weight ?? 1)}" min="0.5" step="0.5" inputmode="decimal" data-edit="${ji}.criteria.${i}.weight" aria-label="Coefficient" title="Coefficient" ${dis}>
-            <button class="x" data-act="rm" data-p="${ji}.criteria.${i}" aria-label="Retirer" ${dis}>×</button></div>
+            ${sheet ? '' : `<button class="x" data-act="rm" data-p="${ji}.criteria.${i}" aria-label="Retirer" ${dis}>×</button>`}</div>
             <input type="text" id="f-${ji}-d-${i}" value="${esc(c.desc)}" data-edit="${ji}.criteria.${i}.desc" placeholder="Ce que le jury regarde (facultatif)" aria-label="Description" ${dis}></div>`).join('')}
-            <button class="btn ghost" data-act="add" data-p="${ji}.criteria" ${dis}>+ Critère</button></div></div>
+            ${sheet ? '' : `<button class="btn ghost" data-act="add" data-p="${ji}.criteria" ${dis}>+ Critère</button>`}</div></div>
       </div></section>`).join('');
     return `<section class="card stack"><h2>Événement</h2>
       <div class="cols">
@@ -687,14 +691,15 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       <div class="row"><label class="row" for="f-lock"><input type="checkbox" id="f-lock" data-edit="locked" ${lock ? 'checked' : ''}> Verrouiller les réglages (critères figés)</label>
         <label class="row" for="f-closed"><input type="checkbox" id="f-closed" data-edit="closed" ${draft.closed ? 'checked' : ''}> Clôturer la notation</label></div>
       ${(() => { const seen = {}, dup = new Set(); draft.juries.forEach(J => J.members.forEach(m => { const f = firstName(m.name); if (!f) return; if (seen[f]) dup.add(m.name.trim().split(/\s+/)[0]); seen[f] = 1; })); return dup.size ? `<p class="banner" style="margin:0">Prénom porté par plusieurs jurés : ${[...dup].map(esc).join(', ')}. À la connexion, ils devront choisir leur nom dans une liste. Ajoutez le nom de famille pour les distinguer.</p>` : ''; })()}
-      ${nScores && !lock ? '<p class="banner" style="margin:0">Des notes sont déjà saisies. Retirer un critère, un membre ou une équipe masque les notes correspondantes.</p>' : ''}
+      ${sheet ? '<p class="banner" style="margin:0">Les jurys, jurés, équipes et critères viennent du Google Sheet : un onglet par jury (nom commençant par « Jury »), groupes en colonne A, jurés en colonne B, critères en en-têtes. Modifiez le tableur, la page se met à jour seule en 10 à 30 secondes.</p>' : ''}
+      ${nScores && !lock && !sheet ? '<p class="banner" style="margin:0">Des notes sont déjà saisies. Retirer un critère, un membre ou une équipe masque les notes correspondantes.</p>' : ''}
       </section>
       <section class="card stack"><h3>Accès organisateur</h3>
         <p class="muted small" style="margin:0">Les réglages ne s'ouvrent qu'en saisissant ce mot de passe à la place d'un prénom, sur l'écran de connexion des jurés (majuscules indifférentes). ${customPassword ? 'Un mot de passe personnalisé est défini.' : 'Mot de passe actuel : celui par défaut, <b>organisateur</b>. Changez-le avant de partager la page.'}</p>
         <label class="field" for="f-pw" style="max-width:360px">Nouveau mot de passe<input type="password" id="f-pw" data-pw="1" value="${esc(newPw)}" autocomplete="new-password" placeholder="Laisser vide pour ne pas changer"></label>
       </section>
       <div class="juries">${juries}</div>
-      <div class="row">${!lock ? '<button class="btn" data-act="add-jury">+ Ajouter un jury</button>' : ''}
+      <div class="row">${!lock && !sheet ? '<button class="btn" data-act="add-jury">+ Ajouter un jury</button>' : ''}
         <button class="btn danger ${armedClear ? 'armed' : ''}" data-act="clear">${armedClear ? `Confirmer : effacer ${nScores} fiches` : 'Effacer toutes les notes'}</button></div>
       ${draftDirty ? `<div class="savebar"><span>Modifications non enregistrées</span><div class="row"><button class="btn ghost" data-act="cancel-cfg" style="background:none;color:inherit">Annuler</button><button class="btn" data-act="save-cfg">Enregistrer</button></div></div>` : ''}`;
   }
@@ -713,6 +718,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     if ((ui.tab === 'ensemble' || ui.tab === 'equipe') && cfg) html += `<div class="fresh" id="fresh">${freshText()}</div>`;
     if (!cfg && mode === 'shared' && !gotScores && !syncFail) html += '<div class="card empty"><h2>Chargement des notes…</h2><p class="muted">Connexion au serveur de notes.</p></div>';
     else if (!cfg) html += viewEmpty();
+    else if (!cfg.juries?.length && ui.tab !== 'reglages') html += '<div class="card empty"><h2>Aucun jury trouvé</h2><p class="muted">Le tableur ne contient aucun onglet dont le nom commence par « Jury ».</p></div>';
     else html += ({ noter: viewNoter, ensemble: viewEnsemble, equipe: viewEquipe, reglages: viewReglages }[ui.tab] || viewNoter)();
     $('#app').innerHTML = html;
     saveUi();
