@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Notation du jury</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap">
+<style>[hidden]{display:none!important}body{margin:0}</style>
+</head>
+<body>
+<style>
+/* Layout: sticky header with a hamburger menu (Noter, Vue d'ensemble, Par équipe; Réglages only in organiser mode, unlocked by password in the login field). */
+:root {
+  /* Charte CPD Culture & Strategy 2026 */
+  --bg: #FAF0DC;          /* crème */
+  --surface: #FFFBF3;
+  --ink: #420E0F;         /* bordeaux */
+  --muted: #7C4A4C;
+  --line: #EBD8C0;
+  --accent: #BE3F8C;      /* magenta */
+  --accent-ink: #FFFFFF;
+  --lime: #ECFDA6;        /* vert acidulé */
+  --lime-ink: #420E0F;
+  --head-bg: #BE3F8C;
+  --head-ink: #FAF0DC;
+  --ok: #2E7A4C;
+  --warn: #A3570F;
+  --danger: #B42335;
+  --font-display: "Lexend", "Avenir Next", system-ui, sans-serif;
+  --font-body: "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #23090A; --surface: #34100F; --ink: #FAF0DC; --muted: #D8B9A9; --line: #5A2628;
+    --accent: #E580BC; --accent-ink: #23090A; --lime: #ECFDA6; --lime-ink: #23090A; --head-bg: #8E2665; --head-ink: #FAF0DC;
+    --ok: #7BD49F; --warn: #F0B062; --danger: #F38A97;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #23090A; --surface: #34100F; --ink: #FAF0DC; --muted: #D8B9A9; --line: #5A2628;
+  --accent: #E580BC; --accent-ink: #23090A; --lime: #ECFDA6; --lime-ink: #23090A; --head-bg: #8E2665; --head-ink: #FAF0DC;
+  --ok: #7BD49F; --warn: #F0B062; --danger: #F38A97;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font-body); overflow-x: hidden; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; }
+
+/* Header + hamburger */
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: var(--head-bg); color: var(--head-ink); }
+header.top .brand span { color: color-mix(in srgb, var(--head-ink) 78%, transparent); }
+header.top .brand b { text-transform: uppercase; letter-spacing: .02em; font-weight: 700; }
+header.top .burger { background: transparent; border-color: color-mix(in srgb, var(--head-ink) 45%, transparent); }
+header.top .burger span { background: var(--head-ink); }
+header.top .here { background: var(--lime); color: var(--lime-ink); }
+header.top .sync { background: color-mix(in srgb, var(--head-ink) 92%, transparent); }
+.top .wrap { display: flex; align-items: center; gap: 12px; padding-block: 10px; position: relative; }
+.brand { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.brand b, .brand span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brand b { font: 800 20px/1.15 var(--font-display); letter-spacing: -0.01em; }
+.brand span { color: var(--muted); font-size: 13px; }
+.burger { flex: none; width: 44px; height: 44px; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; cursor: pointer; display: grid; place-content: center; gap: 4px; padding: 0; }
+.burger span { display: block; width: 18px; height: 2px; border-radius: 2px; background: var(--ink); }
+.burger[aria-expanded="true"] span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+.burger[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.burger[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+.here { flex: none; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--ink); color: var(--bg); white-space: nowrap; }
+.menu { position: absolute; top: calc(100% + 6px); left: 16px; width: min(300px, calc(100% - 32px)); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 14px 36px rgb(0 0 0 / .18); padding: 6px; display: grid; gap: 2px; z-index: 15; max-height: calc(100dvh - 90px); overflow-y: auto; }
+.menu[hidden], .scrim[hidden] { display: none; }
+.menu button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: none; padding: 12px 14px; min-height: 48px; border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--ink); }
+.menu button:hover { background: var(--line); }
+.menu button[aria-current="page"] { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--ink); }
+.menu button[aria-current="page"]::after { content: "●"; margin-left: auto; color: var(--accent); font-size: 10px; }
+.menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 6px; }
+.menu .menu-h { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; padding: 6px 14px 2px; }
+.menu .out { color: var(--muted); font-weight: 500; }
+.scrim { position: fixed; inset: 0; z-index: 9; background: rgb(0 0 0 / .28); }
+@media (max-width: 560px) {
+  .menu { left: 16px; right: 16px; width: auto; }
+  .brand b { font-size: 17px; }
+  .brand span { font-size: 12px; }
+  .here { font-size: 12px; padding: 3px 8px; }
+}
+@media (max-width: 360px) { .here { display: none; } }
+.sync { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; white-space: nowrap; min-height: 28px; }
+.sync i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.sync.ok i { background: var(--ok); }
+.sync.wait { color: var(--warn); border-color: var(--warn); } .sync.wait i { background: var(--warn); }
+.sync.off { color: var(--danger); border-color: var(--danger); } .sync.off i { background: var(--danger); }
+@media (max-width: 420px) { .sync .t { display: none; } .sync { padding: 4px 8px; } }
+.fresh { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+main { padding-block: 20px 64px; display: grid; gap: 20px; min-width: 0; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: .01em; text-transform: uppercase; color: var(--accent); margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
+h2 { font-size: 22px; }
+h3 { font-size: 17px; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink); font-weight: 500; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; min-width: 0; }
+@media (max-width: 560px) { .card { padding: 14px; } main { padding-block: 14px 56px; gap: 14px; } }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; min-width: 0; }
+.between { justify-content: space-between; }
+.stack { display: grid; gap: 14px; min-width: 0; }
+
+.btn { border-radius: 999px !important; border: 1px solid var(--line); background: var(--surface); padding: 8px 14px; min-height: 40px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+.btn:hover { border-color: var(--ink); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.ghost { background: none; }
+.btn.danger { color: var(--danger); }
+.btn.danger.armed { background: var(--danger); color: var(--surface); border-color: var(--danger); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+select, input[type=text], input[type=number], input[type=password], textarea { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0; max-width: 100%; }
+@media (max-width: 560px) { select, input[type=text], input[type=number], input[type=password], textarea { font-size: 16px; } }
+textarea { width: 100%; resize: vertical; min-height: 72px; }
+label.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); font-weight: 600; }
+
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--line); border-radius: 10px; max-width: 100%; }
+.seg button { border: 0; background: none; padding: 6px 12px; min-height: 36px; border-radius: 7px; cursor: pointer; font-weight: 600; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .12); }
+
+.banner { border: 1px dashed var(--warn); color: var(--warn); border-radius: var(--r); padding: 10px 14px; font-size: 14px; }
+
+/* Juror */
+.who { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.who button { padding: 16px; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); cursor: pointer; font: 600 17px var(--font-display); text-align: left; color: var(--ink); }
+.who button:active { background: var(--lime); }
+.who button:hover { border-color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px 6px 8px; min-height: 36px; cursor: pointer; font-weight: 700; display: inline-flex; gap: 6px; align-items: center; font-variant-numeric: tabular-nums; }
+.chip .dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line); }
+.chip.partial .dot { border-color: var(--warn); background: linear-gradient(90deg, var(--warn) 50%, transparent 50%); }
+.chip.done .dot { border-color: var(--ok); background: var(--ok); }
+.chip[aria-current="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+
+.teamhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; min-width: 0; }
+.teamhead h2 { font-size: 30px; }
+@media (max-width: 560px) { .teamhead h2 { font-size: 24px; } }
+.crit { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 18px; align-items: center; padding-block: 14px; border-top: 1px solid var(--line); }
+.crit:first-of-type { border-top: 0; }
+.crit p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.coef { font-size: 12px; color: var(--muted); font-weight: 600; margin-left: 6px; }
+.scale { display: flex; flex-wrap: wrap; gap: 6px; }
+.scale button { width: 48px; height: 48px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font: 800 19px var(--font-display); cursor: pointer; font-variant-numeric: tabular-nums; }
+.scale button:hover:not(:disabled) { border-color: var(--accent); }
+.scale button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+@media (max-width: 560px) { .crit { grid-template-columns: 1fr; } .scale button { width: 52px; height: 52px; } }
+.avgline { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid var(--line); }
+.teamnav { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 560px) { .avgline { flex-direction: column; align-items: stretch; } .teamnav .btn { flex: 1 1 100%; } }
+.big { font: 800 28px var(--font-display); font-variant-numeric: tabular-nums; }
+.big small { font-size: 15px; color: var(--muted); font-weight: 600; }
+
+/* Tables */
+.tscroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+@media (max-width: 560px) { th, td { padding: 7px 7px; } }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+th.l, td.l { text-align: left; }
+tbody tr.click { cursor: pointer; }
+tbody tr.click:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+tr.sel td { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+td.avg { font-weight: 800; }
+tfoot td { font-weight: 700; border-bottom: 0; border-top: 2px solid var(--ink); }
+.rank { display: inline-grid; place-items: center; min-width: 28px; height: 28px; border-radius: 50%; font: 800 14px var(--font-display); background: var(--line); }
+.rank.r1 { background: var(--lime); color: var(--lime-ink); box-shadow: 0 0 0 2px var(--accent); }
+.bar { display: inline-block; width: 70px; height: 6px; border-radius: 3px; background: var(--line); vertical-align: middle; margin-right: 6px; overflow: hidden; }
+@media (max-width: 560px) { .bar { width: 44px; } }
+.bar i { display: block; height: 100%; background: var(--ok); }
+.prov { color: var(--muted); font-style: italic; font-weight: 600; }
+.heat { border-radius: 6px; font-weight: 700; }
+
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font-size: 13px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.pill.done { border-color: var(--ok); color: var(--ok); }
+.kpis { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+.kpi b { display: block; font: 800 24px var(--font-display); font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 13px; color: var(--muted); }
+
+.comments { display: grid; gap: 10px; }
+.comment { border-left: 3px solid var(--accent); padding: 4px 12px; }
+.comment b { font-size: 13px; }
+.comment p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Setup */
+.juries { display: grid; gap: 18px; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 18px; }
+.list { display: grid; gap: 6px; }
+.item { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.item input { flex: 1; }
+.critedit { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
+.critedit .item input[type=number] { flex: 0 0 72px; }
+.x { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 20px; line-height: 1; padding: 8px 10px; border-radius: 6px; }
+.x:hover { color: var(--danger); background: var(--line); }
+.savebar { box-shadow: 0 8px 24px rgb(0 0 0 / .15); position: sticky; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: var(--r); }
+.savebar .btn { background: var(--bg); color: var(--ink); border-color: var(--bg); }
+.toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-weight: 600; z-index: 20; max-width: calc(100% - 32px); }
+.err { margin: 0; color: var(--danger); font-weight: 600; }
+.login { max-width: 640px; position: relative; overflow: hidden; }
+.login::after { content: ""; position: absolute; right: -26px; top: -26px; width: 110px; height: 110px; background: var(--lime); pointer-events: none;
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); transform: rotate(12deg); }
+.login > * { position: relative; z-index: 1; }
+footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); text-align: center; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); opacity: .8; }
+.empty { text-align: center; padding: 40px 18px; display: grid; gap: 12px; justify-items: center; }
+@media (prefers-reduced-motion: no-preference) { .scale button, .chip, .btn, .burger span { transition: background .12s, border-color .12s, color .12s, transform .15s, opacity .15s; } }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <button class="burger" id="burger" aria-expanded="false" aria-controls="menu" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+    <div class="brand"><b id="ev-title">Notation du jury</b><span id="ev-sub">Chargement…</span></div>
+    <button class="sync" id="sync" type="button" aria-live="polite"><i></i><span class="t">Connexion…</span></button>
+    <span class="here" id="here"></span>
+    <nav class="menu" id="menu" aria-label="Vues" hidden></nav>
+  </div>
+</header>
+<div class="scrim" id="scrim" hidden></div>
+<main class="wrap" id="app">
+  <div class="card empty"><h2>Chargement des notes…</h2><p class="muted">La grille du jury s'affiche dès que les données partagées sont lues.</p></div>
+</main>
+<footer class="foot">CPD Culture &amp; Strategy 2026</footer>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  // ---------- state ----------
+  // ================= À RENSEIGNER =================
+  // URL de l'application web Apps Script (Déployer → Application web), se terminant par /exec
+  const API_URL = '';
+  // =================================================
+  let mode = 'loading'; // loading | cached | shared | local (local = API_URL vide, aperçu)
+  let customPassword = false;
+  let cfg = null;            // config/main
+  let scores = {};           // id -> {jury, member, team, values:{critId:n}, comment}
+  let draft = null, draftDirty = false, newPw = '';
+  const writing = {}, again = {}, cmtTimers = {};
+  let armedClear = false, menuOpen = false;
+  // Offline resilience: every local change is queued in `pending` (persisted in localStorage)
+  // until the shared store confirms it; remote snapshots never overwrite a pending entry.
+  let pending = {}, syncFail = false, lastPull = null, polling = false, flushingAll = false, gotScores = false;
+  const POLL_MS = 10000, JUROR_POLL_MS = 30000, WRITE_TIMEOUT = 15000;
+  let lastPollAt = 0;
+  // Organiser password: the server keeps its SHA-256 ("nj:" + lower-cased password) and checks it.
+  const DEFAULT_HASH = 'eb84789239978c5b66ad35a3d0a816b214a1144b44060af4f6be6b5a6c31c7a3'; // "organisateur", aperçu local seulement
+
+  // ---------- API (Apps Script) ----------
+  // POST as text/plain so the browser sends a "simple" request (no CORS preflight, which Apps Script cannot answer).
+  async function api(body) {
+    const r = await withTimeout(fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body), redirect: 'follow' }), WRITE_TIMEOUT);
+    if (!r.ok) throw { code: 'http_' + r.status };
+    const j = await r.json();
+    if (!j.ok) throw { code: j.error || 'refused' };
+    return j;
+  }
+  async function apiState() {
+    const r = await withTimeout(fetch(API_URL + (API_URL.includes('?') ? '&' : '?') + 'action=state&_=' + Date.now(), { redirect: 'follow' }), WRITE_TIMEOUT);
+    if (!r.ok) throw { code: 'http_' + r.status };
+    const j = await r.json();
+    if (!j.ok) throw { code: j.error || 'refused' };
+    return j;
+  }
+  const TABS = [['noter', 'Noter'], ['ensemble', "Vue d'ensemble"], ['equipe', 'Par équipe']];
+  const LABELS = { noter: 'Noter', ensemble: "Vue d'ensemble", equipe: 'Par équipe', reglages: 'Réglages' };
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('nj.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('nj.' + k, JSON.stringify(v)); } catch {} }
+  };
+  const ui = Object.assign({ tab: 'noter', juryId: null, memberId: null, teamId: null, ovJury: null, tJury: null, tTeam: null, prov: false, admin: false, adminKey: null }, store.get('ui', {}));
+  const saveUi = () => store.set('ui', ui);
+  pending = store.get('pending', {}) || {};
+  const savePending = () => store.set('pending', pending);
+  const cacheScores = () => store.set('cache.scores', scores);
+  const cacheCfg = () => store.set('cache.cfg', cfg);
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), ms))]);
+
+  // ---------- helpers ----------
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const isNum = v => typeof v === 'number' && isFinite(v);
+  const fmt = n => n == null ? '' : n.toFixed(2).replace('.', ',');
+  const pct = x => Math.round(x * 100) + ' %';
+  const uid = p => p + Math.random().toString(36).slice(2, 8);
+  const sid = (j, m, t) => `${j}__${m}__${t}`;
+  const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+  const firstName = s => norm(s).split(' ')[0];
+  const login = { value: '', error: '', matches: null };
+  const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  const wavg = pairs => { let s = 0, w = 0; for (const p of pairs) { s += p.v * p.w; w += p.w; } return w > 0 ? s / w : null; };
+  const weight = c => (isNum(+c.weight) && +c.weight > 0) ? +c.weight : 1;
+  const juryOf = id => cfg?.juries.find(j => j.id === id) || cfg?.juries[0];
+  const scale = () => { const min = Math.round(+cfg?.scale?.min || 1), max = Math.round(+cfg?.scale?.max || 4); return { min, max: Math.max(min + 1, Math.min(min + 20, max)) }; };
+  const heat = v => { if (!isNum(v)) return ''; const { min, max } = scale(); const k = Math.round(8 + 52 * (v - min) / (max - min)); return `background: color-mix(in srgb, var(--accent) ${k}%, var(--surface)); color: ${k > 40 ? 'var(--accent-ink)' : 'var(--ink)'}`; };
+
+  async function sha(s) {
+    const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+  }
+  const pwHash = v => sha('nj:' + String(v).trim().toLowerCase());
+  // Resolves the hash when the password is right, null otherwise.
+  async function isAdminPw(v) {
+    if (!String(v).trim()) return null;
+    let h; try { h = await pwHash(v); } catch { return null; }
+    if (mode === 'local') return h === DEFAULT_HASH ? h : null;
+    try { await api({ action: 'admin', key: h }); return h; } catch (e) { if (e?.code !== 'refused') toast('Connexion requise pour ouvrir les réglages.'); return null; }
+  }
+
+  function toast(msg) {
+    const t = $('#toast'); t.textContent = msg; t.hidden = false;
+    clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2600);
+  }
+
+  // ---------- menu ----------
+  function setMenu(open, focusBurger) {
+    menuOpen = open;
+    $('#menu').hidden = !open; $('#scrim').hidden = !open;
+    const b = $('#burger'); b.setAttribute('aria-expanded', String(open)); b.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
+    if (open) { const cur = $('#menu [aria-current="page"]') || $('#menu button'); cur && cur.focus(); }
+    else if (focusBurger) b.focus();
+  }
+  function renderMenu() {
+    const item = (k, l) => `<button data-tab="${k}" aria-current="${ui.tab === k ? 'page' : 'false'}">${esc(l)}</button>`;
+    let html = TABS.map(([k, l]) => item(k, l)).join('');
+    if (ui.admin) html += `<hr><span class="menu-h">Organisateur</span>${item('reglages', 'Réglages')}<button class="out" data-act="admin-out">Quitter le mode organisateur</button>`;
+    $('#menu').innerHTML = html;
+    $('#here').textContent = LABELS[ui.tab] || '';
+  }
+  function go(tab) {
+    ui.tab = tab; if (ui.tab !== 'reglages' && !draftDirty) draft = null; armedClear = false;
+    setMenu(false); render(); window.scrollTo(0, 0);
+  }
+
+  // ---------- computations ----------
+  function memberStat(J, m, t) {
+    const e = scores[sid(J.id, m.id, t.id)] || {};
+    const vals = e.values || {};
+    const pairs = J.criteria.filter(c => isNum(vals[c.id])).map(c => ({ v: vals[c.id], w: weight(c) }));
+    const complete = J.criteria.length > 0 && pairs.length === J.criteria.length;
+    return { m, vals, comment: e.comment || '', filled: pairs.length, complete, avg: complete ? wavg(pairs) : null };
+  }
+  function teamStat(J, t) {
+    const ms = J.members.map(m => memberStat(J, m, t));
+    const total = J.members.length * J.criteria.length;
+    const filled = ms.reduce((a, x) => a + x.filled, 0);
+    const complete = total > 0 && filled === total;
+    const critAvg = {};
+    J.criteria.forEach(c => { critAvg[c.id] = mean(ms.map(x => x.vals[c.id]).filter(isNum)); });
+    const provisional = wavg(J.criteria.filter(c => critAvg[c.id] != null).map(c => ({ v: critAvg[c.id], w: weight(c) })));
+    return { t, J, ms, total, filled, complete, ratio: total ? filled / total : 0, critAvg, avg: complete ? provisional : null, provisional };
+  }
+  function rankList(stats, useProv) {
+    const key = s => s.complete ? s.avg : (useProv ? s.provisional : null);
+    const sorted = [...stats].sort((a, b) => {
+      const ka = key(a), kb = key(b);
+      if (ka == null && kb == null) return b.ratio - a.ratio;
+      if (ka == null) return 1; if (kb == null) return -1;
+      return kb - ka;
+    });
+    let prev = null, rank = 0;
+    sorted.forEach((s, i) => {
+      const k = key(s);
+      if (k == null) { s.rank = null; return; }
+      if (prev == null || Math.abs(k - prev) > 1e-9) rank = i + 1;
+      s.rank = rank; s.score = k; prev = k;
+    });
+    return sorted;
+  }
+
+  // ---------- writes ----------
+  // Every change goes to `pending` (localStorage) first; flushAll sends the whole queue in one request.
+  let flushTimer = null;
+  function flush() { clearTimeout(flushTimer); flushTimer = setTimeout(flushAll, 400); renderSync(); }
+  async function flushAll() {
+    if (flushingAll || mode !== 'shared') { renderSync(); return; }
+    const ids = Object.keys(pending); if (!ids.length) { renderSync(); return; }
+    flushingAll = true;
+    const sent = {}; ids.forEach(id => { sent[id] = JSON.stringify(pending[id]); });
+    try {
+      const r = await api({ action: 'scores', docs: ids.map(id => ({ id, ...pending[id] })) });
+      (r.saved || ids).forEach(id => { if (pending[id] && JSON.stringify(pending[id]) === sent[id]) delete pending[id]; });
+      savePending(); syncFail = false;
+    } catch { syncFail = true; } // network / transient: kept in the queue, retried every 10 s
+    finally { flushingAll = false; renderSync(); }
+    if (Object.keys(pending).some(id => pending[id] && JSON.stringify(pending[id]) !== sent[id])) flush();
+  }
+  function queue(id, body) {
+    scores[id] = body; pending[id] = body;
+    savePending(); cacheScores(); renderSync();
+  }
+  function setScore(J, m, t, critId, v) {
+    const id = sid(J.id, m.id, t.id);
+    const old = scores[id] || { jury: J.id, member: m.id, team: t.id, values: {}, comment: '' };
+    const values = { ...(old.values || {}) };
+    if (values[critId] === v) delete values[critId]; else values[critId] = v;
+    queue(id, { ...old, values, updatedAt: new Date().toISOString() });
+    render(); flush();
+  }
+  function setComment(J, m, t, text) {
+    const id = sid(J.id, m.id, t.id);
+    const old = scores[id] || { jury: J.id, member: m.id, team: t.id, values: {}, comment: '' };
+    queue(id, { ...old, values: { ...(old.values || {}) }, comment: text, updatedAt: new Date().toISOString() });
+    clearTimeout(cmtTimers[id]); cmtTimers[id] = setTimeout(() => { delete cmtTimers[id]; flush(); }, 700);
+  }
+  // Merge the shared scores with this device's unsent changes (local always wins until confirmed).
+  function applyRemote(map) {
+    const next = { ...(map || {}) };
+    for (const id in pending) next[id] = pending[id];
+    const changed = JSON.stringify(next) !== JSON.stringify(scores);
+    scores = next; cacheScores();
+    return changed;
+  }
+  async function poll() {
+    if (polling || mode !== 'shared' || document.hidden) return;
+    polling = true; lastPollAt = Date.now();
+    try {
+      const st = await apiState();
+      customPassword = !!st.customPassword;
+      let changed = applyRemote(st.scores);
+      const nc = st.cfg ? JSON.parse(JSON.stringify(st.cfg)) : null;
+      if (JSON.stringify(nc) !== JSON.stringify(cfg)) { cfg = nc; cacheCfg(); if (!draftDirty) draft = null; changed = true; }
+      lastPull = new Date(); syncFail = false; gotScores = true;
+      if (changed) render(); else { const f = $('#fresh'); if (f) f.textContent = freshText(); }
+    } catch { syncFail = true; if (!cfg) render(); }
+    finally { polling = false; renderSync(); }
+  }
+  const freshText = () => lastPull ? 'Mis à jour à ' + lastPull.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' · actualisation toutes les 10 s' : 'Actualisation toutes les 10 s';
+  function renderSync() {
+    const el = $('#sync'); if (!el) return;
+    const n = Object.keys(pending).length;
+    const offline = navigator.onLine === false;
+    let cls = '', txt = 'Connexion…', title = '';
+    if (mode === 'local') { cls = ''; txt = 'Aperçu'; title = 'Aperçu local : API_URL non renseignée'; }
+    else if (offline) { cls = 'off'; txt = n ? `Hors ligne · ${n} en attente` : 'Hors ligne'; title = 'Les notes restent sur cet appareil et partiront au retour du réseau.'; }
+    else if (n) { cls = 'wait'; txt = `${n} en attente`; title = 'Envoi en cours, nouvel essai toutes les 10 s. Touchez pour réessayer.'; }
+    else if (syncFail) { cls = 'wait'; txt = 'Réseau instable'; title = 'Le dernier échange avec le serveur a échoué.'; }
+    else if (gotScores) { cls = 'ok'; txt = 'À jour'; title = 'Toutes vos notes sont enregistrées.'; }
+    el.className = 'sync ' + cls; el.title = title; el.setAttribute('aria-label', txt + (title ? ' : ' + title : ''));
+    el.querySelector('.t').textContent = (n && window.innerWidth <= 420) ? String(n) : txt;
+  }
+  function lostAdmin() { ui.admin = false; ui.adminKey = null; draft = null; draftDirty = false; newPw = ''; if (ui.tab === 'reglages') ui.tab = 'noter'; toast('Mot de passe organisateur changé ailleurs : reconnectez-vous.'); render(); }
+  async function saveConfig(next, newHash) {
+    if (mode === 'local') { cfg = JSON.parse(JSON.stringify(next)); toast('Réglages appliqués (aperçu local)'); draft = null; draftDirty = false; newPw = ''; render(); return; }
+    try {
+      const r = await api({ action: 'config', key: ui.adminKey, cfg: next, newHash: newHash || undefined });
+      cfg = JSON.parse(JSON.stringify(next)); cacheCfg();
+      if (newHash) { ui.adminKey = r.key || newHash; customPassword = true; }
+      toast('Réglages enregistrés');
+      draft = null; draftDirty = false; newPw = ''; render();
+    } catch (e) {
+      if (e?.code === 'forbidden') lostAdmin();
+      else toast("Les réglages n'ont pas pu être enregistrés. Vérifiez le réseau et réessayez.");
+    }
+  }
+  async function clearScores() {
+    const n = Object.keys(scores).length;
+    if (mode === 'shared') {
+      try { await api({ action: 'clear', key: ui.adminKey }); }
+      catch (e) { if (e?.code === 'forbidden') lostAdmin(); else toast("L'effacement n'a pas abouti. Vérifiez le réseau."); return; }
+    }
+    scores = {}; pending = {}; savePending(); cacheScores(); render();
+    toast(n + ' fiches de notes effacées');
+  }
+
+  function template() {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWX'.split('');
+    const mk = (names, p) => names.map(n => ({ id: uid(p), name: n }));
+    const crit = () => [1, 2, 3, 4].map(i => ({ id: uid('c'), name: 'Critère ' + i, desc: '', weight: 1 }));
+    return {
+      title: 'Présentations des équipes', scale: { min: 1, max: 4 }, locked: false, closed: false,
+      juries: [
+        { id: 'j1', name: 'Jury 1', members: mk(['Membre 1', 'Membre 2', 'Membre 3', 'Membre 4', 'Membre 5', 'Membre 6'], 'm'), teams: mk(letters.slice(0, 12), 't'), criteria: crit() },
+        { id: 'j2', name: 'Jury 2', members: mk(['Membre 7', 'Membre 8', 'Membre 9', 'Membre 10', 'Membre 11', 'Membre 12'], 'm'), teams: mk(letters.slice(12), 't'), criteria: crit() }
+      ]
+    };
+  }
+
+  // ---------- views ----------
+  function viewEmpty() {
+    if (!ui.admin) return `<div class="banner">L'événement n'est pas encore configuré. Les jurés pourront se connecter dès que l'organisateur aura préparé la grille.</div>` + viewLogin();
+    return `<div class="card empty">
+      <span class="eyebrow">Aucun événement configuré</span>
+      <h2>Préparez la grille de notation</h2>
+      <p class="muted" style="max-width:52ch">Partez d'un modèle à 2 jurys de 6 membres, 12 équipes chacun et 4 critères notés de 1 à 4, puis renommez tout dans Réglages.</p>
+      <button class="btn primary" data-act="use-template">Créer depuis le modèle</button>
+    </div>`;
+  }
+
+  function jurySelect(id, cur) {
+    return `<select id="${id}" aria-label="Jury">${cfg.juries.map(j => `<option value="${esc(j.id)}" ${j.id === cur ? 'selected' : ''}>${esc(j.name)}</option>`).join('')}</select>`;
+  }
+
+  function findMember(id) {
+    for (const J of cfg.juries) { const m = J.members.find(x => x.id === id); if (m) return { J, m }; }
+    return null;
+  }
+  function matchFirstName(input) {
+    const q = norm(input); if (!q) return [];
+    const out = [];
+    cfg.juries.forEach(J => J.members.forEach(m => { const n = norm(m.name); if (n === q || n.startsWith(q + ' ')) out.push({ J, m }); }));
+    return out;
+  }
+
+  function suggest(input) {
+    const q = norm(input); if (!q || !cfg) return [];
+    const out = [];
+    cfg.juries.forEach(J => J.members.forEach(m => { const n = norm(m.name); if (n.startsWith(q) || n.split(' ').some(w => w.startsWith(q))) out.push({ J, m }); }));
+    return out.slice(0, 8);
+  }
+  function suggHtml(input) {
+    const list = suggest(input);
+    if (!norm(input) || login.matches) return '';
+    if (!list.length) return '';
+    return `<div class="stack" style="gap:8px"><p class="muted small" style="margin:0">Touchez votre nom :</p><div class="who">${list.map(x => `<button type="button" data-act="login-pick" data-id="${esc(x.m.id)}">${esc(x.m.name)}${cfg.juries.length > 1 ? `<span class="muted small" style="display:block;font:500 13px var(--font-body)">${esc(x.J.name)}</span>` : ''}</button>`).join('')}</div></div>`;
+  }
+
+  function viewLogin() {
+    const v = login.value || '';
+    return `<section class="card stack login">
+      <span class="eyebrow">Espace juré</span>
+      <h2>Connectez-vous avec votre prénom</h2>
+      <p class="muted" style="margin:0">Vous accédez directement à la grille de votre jury. Ce téléphone restera connecté jusqu'à ce que vous changiez de juré.</p>
+      <form id="login-form" class="row" autocomplete="off">
+        <input type="text" id="login-name" value="${esc(v)}" placeholder="Votre prénom" aria-label="Votre prénom" autocapitalize="words" spellcheck="false" style="flex:1 1 180px;font-size:17px;padding:12px 14px">
+        <button class="btn primary" type="submit" style="padding:12px 18px;flex:1 1 auto">Accéder à ma grille</button>
+      </form>
+      <div id="login-err">${login.error ? `<p class="err" role="alert">${esc(login.error)}</p>` : ''}</div>
+      <div id="login-sugg">${suggHtml(v)}</div>
+      ${login.matches ? `<div class="stack" style="gap:8px"><p class="muted small" style="margin:0">Plusieurs jurés portent ce prénom. Choisissez le vôtre :</p>
+        <div class="who">${login.matches.map(x => `<button data-act="login-pick" data-id="${esc(x.m.id)}">${esc(x.m.name)}<span class="muted small" style="display:block;font:500 13px var(--font-body)">${esc(x.J.name)}</span></button>`).join('')}</div></div>` : ''}
+    </section>`;
+  }
+
+  function viewNoter() {
+    const found = ui.memberId ? findMember(ui.memberId) : null;
+    if (!found) { ui.memberId = null; return viewLogin(); }
+    const { J, m: M } = found; ui.juryId = J.id;
+    const head = `<div class="row between">
+      <div class="stack" style="gap:2px"><span class="eyebrow">Grille personnelle · ${esc(J.name)}</span><h2>${esc(M.name)}</h2></div>
+      <button class="btn ghost" data-act="logout">Ce n'est pas moi · changer de juré</button></div>`;
+    if (!J.criteria.length) return head + `<div class="card empty"><h3>Les critères ne sont pas encore définis</h3><p class="muted">L'organisateur les saisit dans Réglages avant la première présentation.</p></div>`;
+    if (!J.teams.length) return head + `<div class="card empty"><h3>Aucune équipe pour ce jury</h3></div>`;
+    const T = J.teams.find(t => t.id === ui.teamId) || J.teams[0]; ui.teamId = T.id;
+    const { min, max } = scale();
+    const closed = !!cfg.closed;
+    const chips = J.teams.map(t => {
+      const s = memberStat(J, M, t);
+      const cls = s.complete ? 'done' : s.filled ? 'partial' : '';
+      return `<button class="chip ${cls}" data-act="pick-team" data-id="${esc(t.id)}" aria-current="${t.id === T.id}"><span class="dot"></span>${esc(t.name)}</button>`;
+    }).join('');
+    const ms = memberStat(J, M, T);
+    const crits = J.criteria.map(c => {
+      const btns = []; for (let v = min; v <= max; v++) btns.push(`<button data-act="score" data-c="${esc(c.id)}" data-v="${v}" aria-pressed="${ms.vals[c.id] === v}" aria-label="${esc(c.name)} : ${v}" ${closed ? 'disabled' : ''}>${v}</button>`);
+      return `<div class="crit"><div><b>${esc(c.name)}</b>${weight(c) !== 1 ? `<span class="coef">coef. ${weight(c)}</span>` : ''}${c.desc ? `<p>${esc(c.desc)}</p>` : ''}</div><div class="scale" role="group" aria-label="${esc(c.name)}">${btns.join('')}</div></div>`;
+    }).join('');
+    const idx = J.teams.indexOf(T), next = J.teams[idx + 1], prev = J.teams[idx - 1];
+    const doneCount = J.teams.filter(t => memberStat(J, M, t).complete).length;
+    const cmtId = 'cmt-' + sid(J.id, M.id, T.id);
+    const panel = `<section class="card stack">
+      <div class="teamhead"><span class="eyebrow">Équipe</span><h2>${esc(T.name)}</h2><span class="muted small">${ms.filled}/${J.criteria.length} critères notés · touchez à nouveau une note pour l'effacer</span></div>
+      ${closed ? '<div class="banner">La notation est clôturée : les notes ne sont plus modifiables.</div>' : ''}
+      <div>${crits}</div>
+      <label class="field" for="${cmtId}">Commentaire pour l'équipe (facultatif)
+        <textarea id="${cmtId}" data-act="comment" placeholder="Points forts, axes de progrès…" ${closed ? 'disabled' : ''}>${esc(ms.comment)}</textarea></label>
+      <div class="avgline"><div><span class="eyebrow">Ma moyenne pour ${esc(T.name)}</span><div class="big">${ms.complete ? fmt(ms.avg) : '–'} <small>/ ${max}</small></div></div>
+        <div class="teamnav">${prev ? `<button class="btn" data-act="pick-team" data-id="${esc(prev.id)}" data-top="1">← Équipe précédente : ${esc(prev.name)}</button>` : ''}${next ? `<button class="btn primary" data-act="pick-team" data-id="${esc(next.id)}" data-top="1">Équipe suivante : ${esc(next.name)} →</button>` : ''}</div></div>
+    </section>`;
+    const table = `<section class="card stack"><div class="row between"><h3>Mes notes</h3><span class="muted small">${doneCount}/${J.teams.length} équipes notées</span></div>
+      <div class="tscroll"><table><thead><tr><th class="l">Équipe</th>${J.criteria.map(c => `<th>${esc(c.name)}</th>`).join('')}<th>Moyenne</th></tr></thead><tbody>
+      ${J.teams.map(t => { const s = memberStat(J, M, t); return `<tr class="click ${t.id === T.id ? 'sel' : ''}" data-act="pick-team" data-id="${esc(t.id)}"><td class="l"><b>${esc(t.name)}</b></td>${J.criteria.map(c => `<td>${isNum(s.vals[c.id]) ? s.vals[c.id] : '<span class="muted">·</span>'}</td>`).join('')}<td class="avg">${fmt(s.avg)}</td></tr>`; }).join('')}
+      </tbody></table></div></section>`;
+    return head + `<div class="chips" aria-label="Équipes">${chips}</div>` + panel + table;
+  }
+
+  function juryTable(J) {
+    const stats = rankList(J.teams.map(t => teamStat(J, t)), ui.prov);
+    const filled = stats.reduce((a, s) => a + s.filled, 0), total = stats.reduce((a, s) => a + s.total, 0);
+    const doneTeams = stats.filter(s => s.complete).length;
+    const memberPills = J.members.map(m => {
+      const n = J.teams.filter(t => memberStat(J, m, t).complete).length;
+      return `<span class="pill ${n === J.teams.length ? 'done' : ''}">${esc(m.name)} · ${n}/${J.teams.length}</span>`;
+    }).join('');
+    return `<section class="card stack">
+      <div class="row between"><h2>${esc(J.name)}</h2>
+        <div class="kpis"><div class="kpi"><b>${total ? pct(filled / total) : '–'}</b><span>des notes saisies</span></div><div class="kpi"><b>${doneTeams}/${J.teams.length}</b><span>équipes entièrement notées</span></div></div></div>
+      <div class="pills" aria-label="Avancement par membre">${memberPills}</div>
+      <div class="tscroll"><table><thead><tr><th>Rang</th><th class="l">Équipe</th>${J.criteria.map(c => `<th>${esc(c.name)}</th>`).join('')}<th>Moyenne</th><th class="l">Avancement</th></tr></thead><tbody>
+      ${stats.map(s => `<tr class="click" data-act="open-team" data-j="${esc(J.id)}" data-id="${esc(s.t.id)}">
+        <td>${s.rank ? `<span class="rank ${s.rank === 1 ? 'r1' : ''}">${s.rank}</span>` : '<span class="muted">–</span>'}</td>
+        <td class="l"><b>${esc(s.t.name)}</b></td>
+        ${J.criteria.map(c => `<td>${fmt(s.critAvg[c.id])}</td>`).join('')}
+        <td class="avg">${s.complete ? fmt(s.avg) : (ui.prov && s.provisional != null ? `<span class="prov">${fmt(s.provisional)}</span>` : '')}</td>
+        <td class="l"><span class="bar"><i style="width:${Math.round(s.ratio * 100)}%"></i></span><span class="small muted">${pct(s.ratio)}</span></td></tr>`).join('')}
+      </tbody></table></div></section>`;
+  }
+
+  function viewEnsemble() {
+    const opts = [...cfg.juries.map(j => [j.id, j.name]), ['all', 'Classement général']];
+    if (!opts.some(o => o[0] === ui.ovJury) && ui.ovJury !== 'both') ui.ovJury = cfg.juries.length > 1 ? 'both' : cfg.juries[0].id;
+    const seg = `<div class="seg" role="group" aria-label="Jury affiché">
+      ${cfg.juries.length > 1 ? `<button data-act="ov" data-id="both" aria-pressed="${ui.ovJury === 'both'}">Tous les jurys</button>` : ''}
+      ${opts.map(([id, n]) => `<button data-act="ov" data-id="${esc(id)}" aria-pressed="${ui.ovJury === id}">${esc(n)}</button>`).join('')}</div>`;
+    const tools = `<div class="row between">${seg}
+      <div class="row"><label class="row small" for="prov"><input type="checkbox" id="prov" ${ui.prov ? 'checked' : ''}> Afficher les moyennes provisoires</label>
+      <button class="btn ghost" data-act="export">Exporter en CSV</button></div></div>
+      <p class="muted small" style="margin:0">Une moyenne s'affiche quand les ${cfg.juries[0]?.members.length || 6} membres ont noté tous les critères. Les moyennes provisoires, en italique, portent sur les notes déjà saisies.</p>`;
+    let body = '';
+    if (ui.ovJury === 'all') {
+      const stats = rankList(cfg.juries.flatMap(J => J.teams.map(t => teamStat(J, t))), ui.prov);
+      body = `<section class="card stack"><div class="row between"><h2>Classement général</h2><span class="muted small">Tous jurys confondus, sur la même échelle de ${scale().min} à ${scale().max}</span></div>
+        <div class="tscroll"><table><thead><tr><th>Rang</th><th class="l">Équipe</th><th class="l">Jury</th><th>Moyenne</th><th class="l">Avancement</th></tr></thead><tbody>
+        ${stats.map(s => `<tr class="click" data-act="open-team" data-j="${esc(s.J.id)}" data-id="${esc(s.t.id)}"><td>${s.rank ? `<span class="rank ${s.rank === 1 ? 'r1' : ''}">${s.rank}</span>` : '<span class="muted">–</span>'}</td>
+          <td class="l"><b>${esc(s.t.name)}</b></td><td class="l muted">${esc(s.J.name)}</td>
+          <td class="avg">${s.complete ? fmt(s.avg) : (ui.prov && s.provisional != null ? `<span class="prov">${fmt(s.provisional)}</span>` : '')}</td>
+          <td class="l"><span class="bar"><i style="width:${Math.round(s.ratio * 100)}%"></i></span><span class="small muted">${pct(s.ratio)}</span></td></tr>`).join('')}
+        </tbody></table></div>
+        ${cfg.juries.some(J => J.criteria.map(c => c.name).join('|') !== cfg.juries[0].criteria.map(c => c.name).join('|')) ? '<p class="banner" style="margin:0">Les jurys n\'utilisent pas les mêmes critères : comparez ce classement avec prudence.</p>' : ''}</section>`;
+    } else if (ui.ovJury === 'both') {
+      body = cfg.juries.map(juryTable).join('');
+    } else body = juryTable(juryOf(ui.ovJury));
+    return tools + body;
+  }
+
+  function viewEquipe() {
+    const J = juryOf(ui.tJury); ui.tJury = J.id;
+    if (!J.teams.length) return `<div class="card empty"><h3>Aucune équipe pour ce jury</h3></div>`;
+    const T = J.teams.find(t => t.id === ui.tTeam) || J.teams[0]; ui.tTeam = T.id;
+    const all = rankList(J.teams.map(t => teamStat(J, t)), false);
+    const s = all.find(x => x.t.id === T.id);
+    const max = scale().max;
+    const chips = J.teams.map(t => `<button class="chip" data-act="t-team" data-id="${esc(t.id)}" aria-current="${t.id === T.id}">${esc(t.name)}</button>`).join('');
+    const grid = `<div class="tscroll"><table><thead><tr><th class="l">Membre du jury</th>${J.criteria.map(c => `<th>${esc(c.name)}${weight(c) !== 1 ? ` <span class="coef">×${weight(c)}</span>` : ''}</th>`).join('')}<th>Moyenne</th></tr></thead><tbody>
+      ${s.ms.map(x => `<tr><td class="l"><b>${esc(x.m.name)}</b></td>${J.criteria.map(c => `<td><span class="heat" style="display:inline-block;min-width:36px;padding:4px 6px;${heat(x.vals[c.id])}">${isNum(x.vals[c.id]) ? x.vals[c.id] : '<span class="muted">·</span>'}</span></td>`).join('')}<td class="avg">${fmt(x.avg)}</td></tr>`).join('')}
+      </tbody><tfoot><tr><td class="l">Moyenne par critère</td>${J.criteria.map(c => `<td>${fmt(s.critAvg[c.id])}</td>`).join('')}<td class="avg">${s.complete ? fmt(s.avg) : ''}</td></tr></tfoot></table></div>`;
+    const comments = s.ms.filter(x => x.comment.trim());
+    return `<div class="row between">${cfg.juries.length > 1 ? jurySelect('t-jury', J.id) : ''}<div class="chips" aria-label="Équipes">${chips}</div></div>
+      <section class="card stack">
+        <div class="row between"><div class="teamhead"><span class="eyebrow">Récapitulatif · ${esc(J.name)}</span><h2>Équipe ${esc(T.name)}</h2></div>
+          <div class="kpis"><div class="kpi"><b>${s.complete ? fmt(s.avg) + ' / ' + max : '–'}</b><span>moyenne générale</span></div>
+          <div class="kpi"><b>${s.rank ? s.rank + (s.rank === 1 ? 'ʳᵉ' : 'ᵉ') + ' / ' + J.teams.length : '–'}</b><span>rang dans le jury</span></div>
+          <div class="kpi"><b>${s.filled}/${s.total}</b><span>notes reçues</span></div></div></div>
+        ${!s.complete ? `<p class="banner" style="margin:0">Notation en cours : la moyenne et le rang s'afficheront quand les ${s.total} notes seront saisies.</p>` : ''}
+        ${grid}
+      </section>
+      <section class="card stack"><h3>Commentaires du jury</h3>
+        ${comments.length ? `<div class="comments">${comments.map(x => `<div class="comment"><b>${esc(x.m.name)}</b><p>${esc(x.comment)}</p></div>`).join('')}</div>` : '<p class="muted" style="margin:0">Aucun commentaire pour cette équipe.</p>'}
+      </section>`;
+  }
+
+  function viewReglages() {
+    if (!draft) { draft = JSON.parse(JSON.stringify(cfg)); draftDirty = false; }
+    const lock = !!draft.locked;
+    const dis = lock ? 'disabled' : '';
+    const nScores = Object.keys(scores).length;
+    const list = (ji, key, ph) => `<div class="list">${draft.juries[ji][key].map((x, i) => `<div class="item"><input type="text" id="f-${ji}-${key}-${i}" value="${esc(x.name)}" data-edit="${ji}.${key}.${i}.name" aria-label="${ph} ${i + 1}" ${dis}><button class="x" data-act="rm" data-p="${ji}.${key}.${i}" aria-label="Retirer" ${dis}>×</button></div>`).join('')}
+      <button class="btn ghost" data-act="add" data-p="${ji}.${key}" ${dis}>+ ${ph}</button></div>`;
+    const juries = draft.juries.map((J, ji) => `<section class="card stack">
+      <div class="row between"><input type="text" id="f-${ji}-name" value="${esc(J.name)}" data-edit="${ji}.name" aria-label="Nom du jury" style="font:800 20px var(--font-display);flex:1 1 200px" ${dis}>
+        ${draft.juries.length > 1 ? `<button class="btn ghost danger" data-act="rm-jury" data-p="${ji}" ${dis}>Retirer ce jury</button>` : ''}</div>
+      <div class="cols">
+        <div class="stack"><h3>Membres (${J.members.length})</h3><p class="muted small" style="margin:0">Prénom, puis nom si besoin. Chaque juré se connecte avec son prénom.</p>${list(ji, 'members', 'Membre')}</div>
+        <div class="stack"><h3>Équipes (${J.teams.length})</h3>${list(ji, 'teams', 'Équipe')}</div>
+        <div class="stack"><h3>Critères (${J.criteria.length})</h3><p class="muted small" style="margin:0">Définis par le jury avant les présentations.</p>
+          <div class="list">${J.criteria.map((c, i) => `<div class="critedit">
+            <div class="item"><input type="text" id="f-${ji}-c-${i}" value="${esc(c.name)}" data-edit="${ji}.criteria.${i}.name" aria-label="Nom du critère" ${dis}>
+            <input type="number" id="f-${ji}-w-${i}" value="${esc(c.weight ?? 1)}" min="0.5" step="0.5" inputmode="decimal" data-edit="${ji}.criteria.${i}.weight" aria-label="Coefficient" title="Coefficient" ${dis}>
+            <button class="x" data-act="rm" data-p="${ji}.criteria.${i}" aria-label="Retirer" ${dis}>×</button></div>
+            <input type="text" id="f-${ji}-d-${i}" value="${esc(c.desc)}" data-edit="${ji}.criteria.${i}.desc" placeholder="Ce que le jury regarde (facultatif)" aria-label="Description" ${dis}></div>`).join('')}
+            <button class="btn ghost" data-act="add" data-p="${ji}.criteria" ${dis}>+ Critère</button></div></div>
+      </div></section>`).join('');
+    return `<section class="card stack"><h2>Événement</h2>
+      <div class="cols">
+        <label class="field" for="f-title">Nom de l'événement<input type="text" id="f-title" value="${esc(draft.title)}" data-edit="title" ${dis}></label>
+        <div class="row"><label class="field" for="f-min">Note minimale<input type="number" id="f-min" value="${esc(draft.scale.min)}" inputmode="numeric" data-edit="scale.min" style="width:90px" ${dis}></label>
+          <label class="field" for="f-max">Note maximale<input type="number" id="f-max" value="${esc(draft.scale.max)}" inputmode="numeric" data-edit="scale.max" style="width:90px" ${dis}></label></div>
+      </div>
+      <div class="row"><label class="row" for="f-lock"><input type="checkbox" id="f-lock" data-edit="locked" ${lock ? 'checked' : ''}> Verrouiller les réglages (critères figés)</label>
+        <label class="row" for="f-closed"><input type="checkbox" id="f-closed" data-edit="closed" ${draft.closed ? 'checked' : ''}> Clôturer la notation</label></div>
+      ${(() => { const seen = {}, dup = new Set(); draft.juries.forEach(J => J.members.forEach(m => { const f = firstName(m.name); if (!f) return; if (seen[f]) dup.add(m.name.trim().split(/\s+/)[0]); seen[f] = 1; })); return dup.size ? `<p class="banner" style="margin:0">Prénom porté par plusieurs jurés : ${[...dup].map(esc).join(', ')}. À la connexion, ils devront choisir leur nom dans une liste. Ajoutez le nom de famille pour les distinguer.</p>` : ''; })()}
+      ${nScores && !lock ? '<p class="banner" style="margin:0">Des notes sont déjà saisies. Retirer un critère, un membre ou une équipe masque les notes correspondantes.</p>' : ''}
+      </section>
+      <section class="card stack"><h3>Accès organisateur</h3>
+        <p class="muted small" style="margin:0">Les réglages ne s'ouvrent qu'en saisissant ce mot de passe à la place d'un prénom, sur l'écran de connexion des jurés (majuscules indifférentes). ${customPassword ? 'Un mot de passe personnalisé est défini.' : 'Mot de passe actuel : celui par défaut, <b>organisateur</b>. Changez-le avant de partager la page.'}</p>
+        <label class="field" for="f-pw" style="max-width:360px">Nouveau mot de passe<input type="password" id="f-pw" data-pw="1" value="${esc(newPw)}" autocomplete="new-password" placeholder="Laisser vide pour ne pas changer"></label>
+      </section>
+      <div class="juries">${juries}</div>
+      <div class="row">${!lock ? '<button class="btn" data-act="add-jury">+ Ajouter un jury</button>' : ''}
+        <button class="btn danger ${armedClear ? 'armed' : ''}" data-act="clear">${armedClear ? `Confirmer : effacer ${nScores} fiches` : 'Effacer toutes les notes'}</button></div>
+      ${draftDirty ? `<div class="savebar"><span>Modifications non enregistrées</span><div class="row"><button class="btn ghost" data-act="cancel-cfg" style="background:none;color:inherit">Annuler</button><button class="btn" data-act="save-cfg">Enregistrer</button></div></div>` : ''}`;
+  }
+
+  // ---------- render ----------
+  function render() {
+    // An organiser session ends if the password was changed elsewhere.
+    if (ui.tab === 'reglages' && (!ui.admin || !cfg)) ui.tab = 'noter';
+    renderMenu(); renderSync();
+    if (mode === 'loading') return;
+    $('#ev-title').textContent = cfg?.title || 'Notation du jury';
+    $('#ev-sub').textContent = cfg ? cfg.juries.map(j => `${j.name} · ${j.members.length} membres · ${j.teams.length} équipes`).join('  /  ') : 'À configurer';
+    const a = document.activeElement, keep = a && a.id && a.closest('#app') ? { id: a.id, s: a.selectionStart, e: a.selectionEnd, v: a.value } : null;
+    let html = mode === 'local' ? '<div class="banner">Aperçu local : les notes ne sont pas partagées ni conservées. Ouvrez la page publiée pour noter à plusieurs.</div>'
+      : (mode === 'shared' && !gotScores && syncFail && !cfg) ? '<div class="banner">Impossible de joindre le serveur de notes. Nouvel essai automatique toutes les 10 s.</div>' : '';
+    if ((ui.tab === 'ensemble' || ui.tab === 'equipe') && cfg) html += `<div class="fresh" id="fresh">${freshText()}</div>`;
+    if (!cfg && mode === 'shared' && !gotScores && !syncFail) html += '<div class="card empty"><h2>Chargement des notes…</h2><p class="muted">Connexion au serveur de notes.</p></div>';
+    else if (!cfg) html += viewEmpty();
+    else html += ({ noter: viewNoter, ensemble: viewEnsemble, equipe: viewEquipe, reglages: viewReglages }[ui.tab] || viewNoter)();
+    $('#app').innerHTML = html;
+    saveUi();
+    if (keep) {
+      const el = document.getElementById(keep.id);
+      if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')) {
+        if (el.type !== 'checkbox') el.value = keep.v;
+        el.focus(); try { el.setSelectionRange(keep.s, keep.e); } catch {}
+      }
+    }
+  }
+
+  // ---------- events ----------
+  const path = (obj, p) => p.split('.').reduce((o, k) => o[k], obj);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && menuOpen) setMenu(false, true); });
+  document.addEventListener('click', e => {
+    if (e.target.closest('#burger')) { setMenu(!menuOpen); return; }
+    if (e.target.closest('#sync')) {
+      const n = Object.keys(pending).length;
+      if (mode === 'shared') { flushAll(); poll(); toast(n ? `Envoi de ${n} fiche${n > 1 ? 's' : ''} en attente…` : 'Toutes vos notes sont enregistrées.'); }
+      return;
+    }
+    if (e.target.closest('#scrim')) { setMenu(false); return; }
+    const tab = e.target.closest('#menu [data-tab]');
+    if (tab) { go(tab.dataset.tab); return; }
+    if (menuOpen && !e.target.closest('#menu')) setMenu(false);
+    const el = e.target.closest('[data-act]'); if (!el) return;
+    const act = el.dataset.act;
+    if (act !== 'clear') armedClear = false;
+    const J = juryOf(ui.juryId);
+    switch (act) {
+      case 'admin-out': ui.admin = false; ui.adminKey = null; draft = null; draftDirty = false; newPw = ''; if (ui.tab === 'reglages') ui.tab = 'noter'; setMenu(false); render(); window.scrollTo(0, 0); toast('Mode organisateur quitté'); break;
+      case 'use-template': if (ui.admin) saveConfig(template()); break;
+      case 'pick-member': case 'login-pick': ui.memberId = el.dataset.id; ui.teamId = null; Object.assign(login, { value: '', error: '', matches: null }); render(); window.scrollTo(0, 0); break;
+      case 'logout': ui.memberId = null; ui.teamId = null; Object.assign(login, { value: '', error: '', matches: null }); render(); window.scrollTo(0, 0); break;
+      case 'pick-team': ui.teamId = el.dataset.id; render(); if (el.dataset.top) window.scrollTo({ top: 0 }); break;
+      case 'score': {
+        const M = J.members.find(m => m.id === ui.memberId), T = J.teams.find(t => t.id === ui.teamId);
+        if (M && T && !cfg.closed) setScore(J, M, T, el.dataset.c, +el.dataset.v);
+        break;
+      }
+      case 'ov': ui.ovJury = el.dataset.id; render(); break;
+      case 'open-team': ui.tJury = el.dataset.j; ui.tTeam = el.dataset.id; ui.tab = 'equipe'; render(); window.scrollTo(0, 0); break;
+      case 't-team': ui.tTeam = el.dataset.id; render(); break;
+      case 'export': exportCsv(); break;
+      case 'add': {
+        const [ji, key] = el.dataset.p.split('.');
+        const arr = draft.juries[+ji][key];
+        if (key === 'criteria') arr.push({ id: uid('c'), name: 'Critère ' + (arr.length + 1), desc: '', weight: 1 });
+        else arr.push({ id: uid(key === 'members' ? 'm' : 't'), name: (key === 'members' ? 'Membre ' : 'Équipe ') + (arr.length + 1) });
+        draftDirty = true; render(); break;
+      }
+      case 'rm': { const p = el.dataset.p.split('.'); draft.juries[+p[0]][p[1]].splice(+p[2], 1); draftDirty = true; render(); break; }
+      case 'add-jury': draft.juries.push({ id: uid('j'), name: 'Jury ' + (draft.juries.length + 1), members: [], teams: [], criteria: [] }); draftDirty = true; render(); break;
+      case 'rm-jury': draft.juries.splice(+el.dataset.p, 1); draftDirty = true; render(); break;
+      case 'save-cfg': (async () => {
+        draft.scale.min = Math.round(+draft.scale.min || 0); draft.scale.max = Math.round(+draft.scale.max || 4);
+        if (draft.scale.max <= draft.scale.min) { toast('La note maximale doit dépasser la note minimale.'); return; }
+        let newHash = null;
+        if (newPw.trim()) {
+          if (newPw.trim().length < 6) { toast('Le mot de passe doit faire au moins 6 caractères.'); return; }
+          try { newHash = await pwHash(newPw); }
+          catch { toast("Le mot de passe n'a pas pu être préparé (page à ouvrir en https)."); return; }
+        }
+        saveConfig(draft, newHash);
+      })(); break;
+      case 'cancel-cfg': draft = null; draftDirty = false; newPw = ''; render(); break;
+      case 'clear': if (armedClear) { armedClear = false; clearScores(); } else { armedClear = true; render(); } break;
+    }
+  });
+  document.addEventListener('input', e => {
+    const el = e.target;
+    if (el.dataset.act === 'comment') {
+      const J = juryOf(ui.juryId), M = J.members.find(m => m.id === ui.memberId), T = J.teams.find(t => t.id === ui.teamId);
+      if (M && T) setComment(J, M, T, el.value);
+      return;
+    }
+    if (el.id === 'login-name') {
+      login.value = el.value; login.error = ''; login.matches = null;
+      const er = $('#login-err'); if (er) er.innerHTML = '';
+      const sg = $('#login-sugg'); if (sg) sg.innerHTML = suggHtml(el.value);
+      return;
+    }
+    if (el.dataset.pw) {
+      newPw = el.value;
+      const wasDirty = draftDirty; draftDirty = true;
+      if (!wasDirty) render();
+      return;
+    }
+    if (el.dataset.edit && draft) {
+      const keys = el.dataset.edit.split('.'), last = keys.pop();
+      const target = keys.length ? path(draft, keys.join('.').replace(/^(\d+)/, 'juries.$1')) : draft;
+      let v = el.type === 'checkbox' ? el.checked : el.value;
+      if (el.type === 'number') v = el.value === '' ? '' : +el.value;
+      target[last] = v;
+      const wasDirty = draftDirty; draftDirty = true;
+      if (el.type === 'checkbox' || !wasDirty) render();
+    }
+  });
+  document.addEventListener('submit', async e => {
+    if (e.target.id !== 'login-form') return;
+    e.preventDefault();
+    const v = $('#login-name').value;
+    login.value = v; login.matches = null; login.error = '';
+    const key = await isAdminPw(v);
+    if (key) {
+      ui.admin = true; ui.adminKey = key; login.value = ''; draft = null; draftDirty = false;
+      ui.tab = cfg ? 'reglages' : 'noter';
+      render(); window.scrollTo(0, 0); toast('Mode organisateur activé'); return;
+    }
+    let hits = cfg ? matchFirstName(v) : [];
+    if (!hits.length && cfg) { const s = suggest(v); if (s.length === 1) hits = s; else if (s.length > 1) hits = s; }
+    if (!norm(v)) login.error = 'Saisissez votre prénom.';
+    else if (!cfg) login.error = "L'événement n'est pas encore configuré.";
+    else if (!hits.length) login.error = `Aucun juré ne s'appelle « ${v.trim()} ». Vérifiez l'orthographe ou demandez à l'organisateur.`;
+    else if (hits.length > 1) login.matches = hits;
+    else { ui.memberId = hits[0].m.id; ui.juryId = hits[0].J.id; ui.teamId = null; login.value = ''; }
+    render();
+  });
+  document.addEventListener('change', e => {
+    const el = e.target;
+    if (el.id === 'pick-jury') { ui.juryId = el.value; ui.memberId = null; ui.teamId = null; render(); }
+    else if (el.id === 'pick-member') { ui.memberId = el.value || null; ui.teamId = null; render(); }
+    else if (el.id === 't-jury') { ui.tJury = el.value; ui.tTeam = null; render(); }
+    else if (el.id === 'prov') { ui.prov = el.checked; render(); }
+  });
+
+  async function exportCsv() {
+    const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = [];
+    cfg.juries.forEach(J => {
+      rows.push([J.name].map(q).join(';'));
+      rows.push(['Équipe', 'Membre du jury', ...J.criteria.map(c => c.name), 'Moyenne', 'Commentaire'].map(q).join(';'));
+      J.teams.forEach(t => {
+        const s = teamStat(J, t);
+        s.ms.forEach(x => rows.push([t.name, x.m.name, ...J.criteria.map(c => isNum(x.vals[c.id]) ? String(x.vals[c.id]).replace('.', ',') : ''), fmt(x.avg), x.comment].map(q).join(';')));
+        rows.push([t.name, 'MOYENNE ÉQUIPE', ...J.criteria.map(c => fmt(s.critAvg[c.id])), s.complete ? fmt(s.avg) : '', ''].map(q).join(';'));
+      });
+      rows.push('');
+    });
+    const data = '﻿' + rows.join('\n');
+    const url = URL.createObjectURL(new Blob([data], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'notation-jury.csv';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  // ---------- boot ----------
+  // Start from this device's last known state so the grid opens even without network.
+  {
+    const cc = store.get('cache.cfg', null), cs = store.get('cache.scores', {}) || {};
+    if (cc) { cfg = cc; scores = { ...cs, ...pending }; mode = 'cached'; }
+  }
+  render();
+  window.addEventListener('online', () => { renderSync(); flushAll(); poll(); });
+  window.addEventListener('offline', renderSync);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { flushAll(); poll(); } });
+  if (!API_URL) { mode = 'local'; render(); }
+  else {
+    mode = 'shared';
+    poll().then(() => { render(); flushAll(); });
+    // Report screens: light pull every 10 s. Juror screen: every 30 s (config changes only).
+    setInterval(() => {
+      if (Object.keys(pending).length) flushAll();
+      const report = ui.tab === 'ensemble' || ui.tab === 'equipe' || ui.tab === 'reglages';
+      if (report || Date.now() - lastPollAt >= JUROR_POLL_MS || !gotScores) poll();
+    }, POLL_MS);
+  }
+})();
+</script>
+</body>
+</html>
