@@ -1,6 +1,6 @@
 # Notation du jury — CPD Culture & Strategy 2026
 
-Page web de notation des présentations d'équipes par les jurés, sur téléphone.
+Page web (en anglais) de notation des présentations d'équipes par les jurés, sur téléphone.
 Les notes sont stockées dans le Google Sheet **JURY_ASSESSMENT** via un script Apps Script.
 
 - `index.html` : la page (un seul fichier, à déposer sur n'importe quel hébergement statique en **https**).
@@ -38,7 +38,7 @@ La page s'ouvre aussi hors ligne avec les dernières données connues.
 La liste des jurys, jurés, équipes et critères est lue **à chaque actualisation** dans le tableur :
 
 - **Un jury = un onglet dont le nom commence par « Jury »** (`JURY 1`, `Jury 2`, `Jury 3 - finale`…). Ajouter un onglet de ce type ajoute un jury ; les autres onglets (`Pax 1`…) sont ignorés.
-- **Colonne A** : groupe (équipe). Valeurs distinctes, dans l'ordre d'apparition.
+- **Colonne A** : groupe (équipe). Uniquement les 12 groupes **A à L** (toute autre valeur est ignorée), triés par ordre alphabétique.
 - **Colonne B** : membre du jury. Valeurs distinctes, doublons et majuscules/accents ignorés.
 - **Ligne 1, colonnes C et suivantes** jusqu'à `Average` / `Moyenne` / `Completion` : les critères.
 

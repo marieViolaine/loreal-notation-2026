@@ -1,42 +1,43 @@
 /**
- * Notation du jury — serveur Google Apps Script
+ * Jury scoring — Google Apps Script server
  * --------------------------------------------------------------
- * À coller dans le tableur JURY_ASSESSMENT : Extensions → Apps Script.
- * Puis : Déployer → Nouveau déploiement → type « Application web »
- *        Exécuter en tant que : Moi
- *        Qui a accès : Tout le monde
- * Copiez l'URL obtenue (…/exec) et collez-la dans index.html (constante API_URL).
+ * Paste into the JURY_ASSESSMENT spreadsheet: Extensions → Apps Script.
+ * Then: Deploy → New deployment → type "Web app"
+ *        Execute as: Me
+ *        Who has access: Anyone
+ * Copy the resulting URL (…/exec) into index.html (API_URL constant).
  *
- * SOURCE DE VÉRITÉ = LE TABLEUR
- *   Chaque onglet dont le nom commence par « Jury » (JURY 1, Jury 2, Jury 3…) est un jury.
- *   Ligne 1 : en-têtes. Colonne A : groupe (équipe). Colonne B : membre du jury.
- *   Colonnes C et suivantes, jusqu'à « Average » / « Moyenne » / « Completion » : les critères.
- *   → Équipes = valeurs distinctes de la colonne A, membres = valeurs distinctes de la colonne B
- *     (doublons et casse ignorés), critères = en-têtes. Ajouter un onglet « Jury N », un nom ou
- *     un groupe dans le tableur suffit : la page se met à jour seule (10 à 30 s).
+ * SOURCE OF TRUTH = THE SPREADSHEET
+ *   Every tab whose name starts with "Jury" (JURY 1, Jury 2, Jury 3…) is a jury.
+ *   Row 1: headers. Column A: group (team). Column B: jury member.
+ *   Columns C onwards, up to "Average" / "Moyenne" / "Completion": the criteria.
+ *   → Teams = distinct values of column A, limited to the 12 groups A to L (anything else is ignored);
+ *     members = distinct values of column B (duplicates and case ignored); criteria = headers.
+ *     Adding a "Jury N" tab or a name in the spreadsheet is enough: the page updates by itself (10 to 30 s).
  *
- * Les notes saisies dans la page sont écrites :
- *   - dans l'onglet APP_NOTES (une ligne par juré × équipe, journal complet) ;
- *   - dans la ligne correspondante (groupe + membre) de l'onglet « Jury N », colonnes des critères,
- *     pour que les formules existantes (Average, Completion, onglets Pax…) restent à jour.
+ * Scores entered in the page are written:
+ *   - to the APP_NOTES tab (one row per juror × team, full log);
+ *   - to the matching row (group + member) of the "Jury N" tab, criteria columns,
+ *     so the existing formulas (Average, Completion, Pax tabs…) stay up to date.
  *
- * Réglages gérés par la page (onglet APP_CONFIG, ne pas modifier à la main) : titre, échelle,
- * clôture, coefficients et descriptions des critères.
+ * Settings managed by the page (APP_CONFIG tab, do not edit by hand): title, scale,
+ * closing, criteria weights and descriptions.
  *
- * Mot de passe organisateur par défaut : organisateur (à changer depuis la page).
+ * Default organiser password: organisateur (change it from the page).
  */
 
 const JURY_PREFIX = /^\s*jury\b/i;
 const STOP_HEADERS = /^(average|moyenne|completion|compl[eé]tion|total|rang|rank)$/i;
 const NOTES_SHEET = 'APP_NOTES';
 const CONFIG_SHEET = 'APP_CONFIG';
-const WRITE_BACK = true; // écrire aussi les notes dans les onglets « Jury N »
+const WRITE_BACK = true; // also write scores into the "Jury N" tabs
 const MAX_CRIT = 10;
+const TEAMS = /^[A-L]$/i; // the 12 groups, A to L
 const DEFAULT_HASH = 'eb84789239978c5b66ad35a3d0a816b214a1144b44060af4f6be6b5a6c31c7a3'; // "organisateur"
-const DEFAULT_SETTINGS = { title: 'Présentations des équipes', scale: { min: 1, max: 4 }, locked: false, closed: false, crit: {} };
-const HEAD = ['id', 'jury', 'member', 'team', 'values', 'comment', 'updatedAt', 'Jury', 'Membre', 'Équipe']
-  .concat(Array.from({ length: MAX_CRIT }, (_, i) => 'Note ' + (i + 1)))
-  .concat(['Moyenne', 'Commentaire']);
+const DEFAULT_SETTINGS = { title: 'Team presentations', scale: { min: 1, max: 4 }, locked: false, closed: false, crit: {} };
+const HEAD = ['id', 'jury', 'member', 'team', 'values', 'comment', 'updatedAt', 'Jury', 'Member', 'Team']
+  .concat(Array.from({ length: MAX_CRIT }, (_, i) => 'Score ' + (i + 1)))
+  .concat(['Average', 'Comment']);
 
 // ---------- HTTP ----------
 function doGet(e) {
@@ -74,11 +75,11 @@ function doPost(e) {
 function json(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 function adminHash() { return PropertiesService.getScriptProperties().getProperty('ADMIN_HASH') || DEFAULT_HASH; }
 
-// ---------- lecture des onglets « Jury N » ----------
+// ---------- reading the "Jury N" tabs ----------
 function norm(s) { return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
 function slug(s) { return norm(s).replace(/ /g, '-') || 'x'; }
 
-/** Construit les jurys depuis le tableur. Renvoie [{ id, name, sheet, members, teams, criteria, rows }]. */
+/** Builds the juries from the spreadsheet. Returns [{ id, name, sheet, members, teams, criteria, rows }]. */
 function readJuries() {
   const out = [];
   const used = {};
@@ -99,17 +100,19 @@ function readJuries() {
     let id = 'j-' + slug(name); while (used[id]) id += '_'; used[id] = 1;
     const members = [], teams = [], seenM = {}, seenT = {}, rows = {};
     for (let r = 1; r < data.length; r++) {
-      const g = String(data[r][0] || '').trim(), m = String(data[r][1] || '').trim();
+      const g0 = String(data[r][0] || '').trim(), m = String(data[r][1] || '').trim();
+      const g = TEAMS.test(g0) ? g0.toUpperCase() : ''; // only groups A to L
       if (g && !seenT[norm(g)]) { seenT[norm(g)] = 1; teams.push({ id: 't-' + slug(g), name: g }); }
       if (m && !seenM[norm(m)]) { seenM[norm(m)] = 1; members.push({ id: 'm-' + slug(m), name: m }); }
       if (g && m) rows['t-' + slug(g) + '|m-' + slug(m)] = r + 1;
     }
+    teams.sort((a, b) => a.name.localeCompare(b.name));
     out.push({ id, name: name.trim(), sheet: name, members, teams, criteria, rows });
   });
   return out;
 }
 
-/** Configuration envoyée à la page : structure du tableur + réglages de la page. */
+/** Configuration sent to the page: spreadsheet structure + page settings. */
 function buildConfig(juries) {
   const st = readSettings();
   return {
@@ -126,7 +129,7 @@ function buildConfig(juries) {
   };
 }
 
-// ---------- état ----------
+// ---------- state ----------
 function getState() {
   const cache = CacheService.getScriptCache();
   const hit = cache.get('state');
@@ -148,7 +151,7 @@ function getState() {
   return state;
 }
 
-// ---------- notes ----------
+// ---------- scores ----------
 function notesSheet() {
   const ss = SpreadsheetApp.getActive();
   let sh = ss.getSheetByName(NOTES_SHEET);
@@ -156,7 +159,7 @@ function notesSheet() {
     sh = ss.insertSheet(NOTES_SHEET);
     sh.getRange(1, 1, 1, HEAD.length).setValues([HEAD]).setFontWeight('bold');
     sh.setFrozenRows(1);
-    sh.hideColumns(1, 7); // colonnes techniques
+    sh.hideColumns(1, 7); // technical columns
   }
   return sh;
 }
@@ -173,7 +176,7 @@ function saveScores(docs) {
   let next = sh.getLastRow() + 1;
   docs.forEach(d => {
     if (!d || !d.id || !/^[\w:.-]+__[\w:.-]+__[\w:.-]+$/.test(d.id)) return;
-    // Dernière saisie gagnante (horodatage de l'appareil) : une copie plus ancienne n'écrase jamais une plus récente.
+    // Last write wins (device timestamp): an older copy never overwrites a newer one.
     if (atOf[d.id] && d.updatedAt && String(d.updatedAt) < atOf[d.id]) { saved.push(d.id); return; }
     const row = rowFor(cfg, d);
     const r = rowOf[d.id] || next++;
@@ -185,7 +188,7 @@ function saveScores(docs) {
   return { ok: true, saved };
 }
 
-/** Recopie les notes dans la ligne (groupe, membre) de l'onglet « Jury N ». */
+/** Copies the scores into the (group, member) row of the "Jury N" tab. */
 function writeBack(juries, d) {
   const J = juries.find(j => j.id === d.jury); if (!J || !J.criteria.length) return;
   const r = J.rows[d.team + '|' + d.member]; if (!r) return;
@@ -228,7 +231,7 @@ function clearNotes() {
   });
 }
 
-// ---------- réglages ----------
+// ---------- settings ----------
 function readSettings() {
   const sh = SpreadsheetApp.getActive().getSheetByName(CONFIG_SHEET);
   const raw = sh ? String(sh.getRange('A1').getValue() || '') : '';
@@ -236,9 +239,9 @@ function readSettings() {
   try { return Object.assign(JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), JSON.parse(raw)); } catch (err) { return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)); }
 }
 
-/** Ne garde de la configuration reçue que ce que la page a le droit de changer. */
+/** Keeps only what the page is allowed to change from the received configuration. */
 function writeSettings(cfg) {
-  if (!cfg) throw new Error('config invalide');
+  if (!cfg) throw new Error('invalid config');
   const crit = {};
   (cfg.juries || []).forEach(J => {
     crit[J.id] = {};
@@ -251,6 +254,6 @@ function writeSettings(cfg) {
   };
   const ss = SpreadsheetApp.getActive();
   let sh = ss.getSheetByName(CONFIG_SHEET);
-  if (!sh) { sh = ss.insertSheet(CONFIG_SHEET); sh.getRange('B1').setValue('Ne pas modifier à la main : réglages gérés par la page de notation.'); }
+  if (!sh) { sh = ss.insertSheet(CONFIG_SHEET); sh.getRange('B1').setValue('Do not edit by hand: settings managed by the scoring page.'); }
   sh.getRange('A1').setValue(JSON.stringify(st));
 }
