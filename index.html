@@ -131,7 +131,7 @@ label.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); fon
 
 .banner { border: 1px dashed var(--warn); color: var(--warn); border-radius: var(--r); padding: 10px 14px; font-size: 14px; }
 
-/* Juror */
+/* Jury member */
 .who { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .who button { padding: 16px; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); cursor: pointer; font: 600 17px var(--font-display); text-align: left; color: var(--ink); }
 .who button:active { background: var(--lime); }
@@ -156,8 +156,7 @@ label.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); fon
 .scale button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 @media (max-width: 560px) { .crit { grid-template-columns: 1fr; } .scale button { width: 52px; height: 52px; } }
 .avgline { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid var(--line); }
-.teamnav { display: flex; flex-wrap: wrap; gap: 8px; }
-@media (max-width: 560px) { .avgline { flex-direction: column; align-items: stretch; } .teamnav .btn { flex: 1 1 100%; } }
+@media (max-width: 560px) { .avgline { flex-direction: column; align-items: stretch; } }
 .big { font: 800 28px var(--font-display); font-variant-numeric: tabular-nums; }
 .big small { font-size: 15px; color: var(--muted); font-weight: 600; }
 
@@ -250,7 +249,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
   // Offline resilience: every local change is queued in `pending` (persisted in localStorage)
   // until the shared store confirms it; remote snapshots never overwrite a pending entry.
   let pending = {}, syncFail = false, lastPull = null, polling = false, flushingAll = false, gotScores = false;
-  const POLL_MS = 10000, JUROR_POLL_MS = 30000, WRITE_TIMEOUT = 15000;
+  const POLL_MS = 10000, MEMBER_POLL_MS = 30000, WRITE_TIMEOUT = 15000;
   let lastPollAt = 0;
   // Organiser password: the server keeps its SHA-256 ("nj:" + lower-cased password) and checks it.
   const DEFAULT_HASH = 'eb84789239978c5b66ad35a3d0a816b214a1144b44060af4f6be6b5a6c31c7a3'; // "organisateur", local preview only
@@ -271,8 +270,8 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     if (!j.ok) throw { code: j.error || 'refused' };
     return j;
   }
-  const TABS = [['noter', 'Score'], ['ensemble', 'Overview'], ['equipe', 'By team'], ['jure', 'By juror']];
-  const LABELS = { noter: 'Score', ensemble: 'Overview', equipe: 'By team', jure: 'By juror', reglages: 'Settings' };
+  const TABS = [['noter', 'Score'], ['ensemble', 'Overview'], ['equipe', 'By team'], ['jure', 'By jury member']];
+  const LABELS = { noter: 'Score', ensemble: 'Overview', equipe: 'By team', jure: 'By jury member', reglages: 'Settings' };
 
   const store = {
     get(k, d) { try { const v = localStorage.getItem('nj.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
@@ -298,7 +297,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
   const TEAM_LETTERS = 'ABCDEFGHIJKL'.split(''); // 12 teams, A to L
   const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
   const firstName = s => norm(s).split(' ')[0];
-  const login = { value: '', error: '', matches: null };
+  const login = { step: 'name', name: '', jury: null, member: null, error: '', busy: false };
   const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
   const wavg = pairs => { let s = 0, w = 0; for (const p of pairs) { s += p.v * p.w; w += p.w; } return w > 0 ? s / w : null; };
   const weight = c => (isNum(+c.weight) && +c.weight > 0) ? +c.weight : 1;
@@ -489,7 +488,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
 
   // ---------- views ----------
   function viewEmpty() {
-    if (!ui.admin) return `<div class="banner">The event is not set up yet. Jurors can sign in as soon as the organiser has prepared the grid.</div>` + viewLogin();
+    if (!ui.admin) return `<div class="banner">The event is not set up yet. Jury members can sign in as soon as the organiser has prepared the grid.</div>` + viewLogin();
     return `<div class="card empty">
       <span class="eyebrow">No event set up</span>
       <h2>Prepare the scoring grid</h2>
@@ -502,45 +501,84 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     return `<select id="${id}" aria-label="Jury">${cfg.juries.map(j => `<option value="${esc(j.id)}" ${j.id === cur ? 'selected' : ''}>${esc(j.name)}</option>`).join('')}</select>`;
   }
 
+  function resetLogin() { Object.assign(login, { step: 'name', name: '', jury: null, member: null, error: '', busy: false }); }
+
   function findMember(id) {
     for (const J of cfg.juries) { const m = J.members.find(x => x.id === id); if (m) return { J, m }; }
     return null;
   }
-  function matchFirstName(input) {
-    const q = norm(input); if (!q) return [];
-    const out = [];
-    cfg.juries.forEach(J => J.members.forEach(m => { const n = norm(m.name); if (n === q || n.startsWith(q + ' ')) out.push({ J, m }); }));
-    return out;
-  }
-
-  function suggest(input) {
-    const q = norm(input); if (!q || !cfg) return [];
-    const out = [];
-    cfg.juries.forEach(J => J.members.forEach(m => { const n = norm(m.name); if (n.startsWith(q) || n.split(' ').some(w => w.startsWith(q))) out.push({ J, m }); }));
-    return out.slice(0, 8);
-  }
-  function suggHtml(input) {
-    const list = suggest(input);
-    if (!norm(input) || login.matches) return '';
-    if (!list.length) return '';
-    return `<div class="stack" style="gap:8px"><p class="muted small" style="margin:0">Tap your name:</p><div class="who">${list.map(x => `<button type="button" data-act="login-pick" data-id="${esc(x.m.id)}">${esc(x.m.name)}${cfg.juries.length > 1 ? `<span class="muted small" style="display:block;font:500 13px var(--font-body)">${esc(x.J.name)}</span>` : ''}</button>`).join('')}</div></div>`;
-  }
-
+  // Sign-in is a declaration, not a lookup: the spreadsheet no longer carries the
+  // names. First name, then jury, then the group to start on. Claiming a jury seat
+  // writes the name into column B on that seat's row of every group, which is what
+  // makes a member a member of every group at once.
   function viewLogin() {
-    const v = login.value || '';
+    if (login.step === 'group' && login.member && juryOf(login.jury)) return loginGroup();
+    if (login.step === 'jury' && norm(login.name)) return loginJury();
+    return loginName();
+  }
+
+  function loginName() {
     return `<section class="card stack login">
-      <span class="eyebrow">Juror area</span>
-      <h2>Sign in with your first name</h2>
-      <p class="muted" style="margin:0">You go straight to your jury's grid. This phone stays signed in until you switch juror.</p>
+      <span class="eyebrow">Jury member area</span>
+      <h2>What is your first name?</h2>
+      <p class="muted" style="margin:0">You pick your jury next. This phone stays signed in until you switch jury member.</p>
       <form id="login-form" class="row" autocomplete="off">
-        <input type="text" id="login-name" value="${esc(v)}" placeholder="Your first name" aria-label="Your first name" autocapitalize="words" spellcheck="false" style="flex:1 1 180px;font-size:17px;padding:12px 14px">
-        <button class="btn primary" type="submit" style="padding:12px 18px;flex:1 1 auto">Open my grid</button>
+        <input type="text" id="login-name" value="${esc(login.name || '')}" placeholder="Your first name" aria-label="Your first name" autocapitalize="words" spellcheck="false" style="flex:1 1 180px;font-size:17px;padding:12px 14px">
+        <button class="btn primary" type="submit" style="padding:12px 18px;flex:1 1 auto">Continue</button>
       </form>
       <div id="login-err">${login.error ? `<p class="err" role="alert">${esc(login.error)}</p>` : ''}</div>
-      <div id="login-sugg">${suggHtml(v)}</div>
-      ${login.matches ? `<div class="stack" style="gap:8px"><p class="muted small" style="margin:0">Several jurors share this first name. Pick yours:</p>
-        <div class="who">${login.matches.map(x => `<button data-act="login-pick" data-id="${esc(x.m.id)}">${esc(x.m.name)}<span class="muted small" style="display:block;font:500 13px var(--font-body)">${esc(x.J.name)}</span></button>`).join('')}</div></div>` : ''}
     </section>`;
+  }
+
+  function loginJury() {
+    return `<section class="card stack login">
+      <span class="eyebrow">Jury member area · ${esc(login.name)}</span>
+      <h2>Which jury are you on?</h2>
+      <div class="who">${cfg.juries.map(J => {
+        const free = J.free == null ? null : J.free;
+        const sub = free == null ? '' : (free > 0 ? `${free} of ${J.seats} seats left` : 'full');
+        return `<button data-act="login-jury" data-id="${esc(J.id)}" ${login.busy || free === 0 ? 'disabled' : ''}>${esc(J.name)}${sub ? `<span class="muted small" style="display:block;font:500 13px var(--font-body)">${esc(sub)}</span>` : ''}</button>`;
+      }).join('')}</div>
+      ${login.busy ? '<p class="muted small" style="margin:0">Taking your seat…</p>' : ''}
+      ${login.error ? `<p class="err" role="alert">${esc(login.error)}</p>` : ''}
+      <div><button class="btn ghost" data-act="login-back">← Change my first name</button></div>
+    </section>`;
+  }
+
+  function loginGroup() {
+    const J = juryOf(login.jury);
+    if (!J.teams.length) return `<section class="card stack login"><span class="eyebrow">${esc(J.name)}</span><h2>No group to score</h2>
+      <p class="muted" style="margin:0">Column A of this tab holds no group between A and L.</p>
+      <div><button class="btn ghost" data-act="login-back">← Start again</button></div></section>`;
+    return `<section class="card stack login">
+      <span class="eyebrow">${esc(J.name)} · ${esc(login.member.name)}</span>
+      <h2>Which group do you start with?</h2>
+      <p class="muted" style="margin:0">You score every group — this only sets where you begin.</p>
+      <div class="chips" aria-label="Groups">${J.teams.map(t => `<button class="chip" data-act="login-group" data-id="${esc(t.id)}">${esc(t.name)}</button>`).join('')}</div>
+    </section>`;
+  }
+
+  // Claims the seat server-side. The same first name coming back on another phone
+  // gets its seat again instead of consuming a new one.
+  async function doJoin(juryId) {
+    if (login.busy) return;
+    login.busy = true; login.error = ''; render();
+    try {
+      const r = await api({ action: 'join', jury: juryId, name: login.name });
+      login.jury = r.jury; login.member = r.member; login.step = 'group';
+      // cfg only catches up on the next poll, and viewNoter needs the member to
+      // exist or it bounces straight back to sign-in.
+      const J = juryOf(r.jury);
+      if (J && !J.members.some(m => m.id === r.member.id)) { J.members.push({ id: r.member.id, name: r.member.name }); if (J.free > 0) J.free--; }
+      poll();
+    } catch (err) {
+      const c = err && err.code;
+      login.error = c === 'jury_full' ? 'This jury is full: every seat is taken. Check with the organiser.'
+        : c === 'busy' ? 'Several people are signing in at once. Tap your jury again.'
+        : c === 'no_name' ? 'Enter your first name.'
+        : c === 'name_too_long' ? 'That first name is too long.'
+        : 'Could not reach the server. Tap your jury again.';
+    } finally { login.busy = false; render(); }
   }
 
   function viewNoter() {
@@ -549,7 +587,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const { J, m: M } = found; ui.juryId = J.id;
     const head = `<div class="row between">
       <div class="stack" style="gap:2px"><span class="eyebrow">Personal grid · ${esc(J.name)}</span><h2>${esc(M.name)}</h2></div>
-      <button class="btn ghost" data-act="logout">Not me · switch juror</button></div>`;
+      <button class="btn ghost" data-act="logout">Not me · switch jury member</button></div>`;
     if (!J.criteria.length) return head + `<div class="card empty"><h3>The criteria are not defined yet</h3><p class="muted">The organiser enters them in Settings before the first presentation.</p></div>`;
     if (!J.teams.length) return head + `<div class="card empty"><h3>No teams for this jury</h3></div>`;
     const T = J.teams.find(t => t.id === ui.teamId) || J.teams[0]; ui.teamId = T.id;
@@ -565,7 +603,6 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       const btns = []; for (let v = min; v <= max; v++) btns.push(`<button data-act="score" data-c="${esc(c.id)}" data-v="${v}" aria-pressed="${ms.vals[c.id] === v}" aria-label="${esc(c.name)}: ${v}" ${closed ? 'disabled' : ''}>${v}</button>`);
       return `<div class="crit"><div><b>${esc(c.name)}</b>${weight(c) !== 1 ? `<span class="coef">weight ${weight(c)}</span>` : ''}${c.desc ? `<p>${esc(c.desc)}</p>` : ''}</div><div class="scale" role="group" aria-label="${esc(c.name)}">${btns.join('')}</div></div>`;
     }).join('');
-    const idx = J.teams.indexOf(T), next = J.teams[idx + 1], prev = J.teams[idx - 1];
     const doneCount = J.teams.filter(t => memberStat(J, M, t).complete).length;
     const cmtId = 'cmt-' + sid(J.id, M.id, T.id);
     const panel = `<section class="card stack">
@@ -574,8 +611,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       <div>${crits}</div>
       <label class="field" for="${cmtId}">Comment for the team (optional)
         <textarea id="${cmtId}" data-act="comment" placeholder="Strengths, areas for improvement…" ${closed ? 'disabled' : ''}>${esc(ms.comment)}</textarea></label>
-      <div class="avgline"><div><span class="eyebrow">My average for ${esc(T.name)}</span><div class="big">${ms.complete ? fmt(ms.avg) : '–'} <small>/ ${max}</small></div></div>
-        <div class="teamnav">${prev ? `<button class="btn" data-act="pick-team" data-id="${esc(prev.id)}" data-top="1">← Previous team: ${esc(prev.name)}</button>` : ''}${next ? `<button class="btn primary" data-act="pick-team" data-id="${esc(next.id)}" data-top="1">Next team: ${esc(next.name)} →</button>` : ''}</div></div>
+      <div class="avgline"><div><span class="eyebrow">My average for ${esc(T.name)}</span><div class="big">${ms.complete ? fmt(ms.avg) : '–'} <small>/ ${max}</small></div></div></div>
     </section>`;
     const table = `<section class="card stack"><div class="row between"><h3>My scores</h3><span class="muted small">${doneCount}/${J.teams.length} teams scored</span></div>
       <div class="tscroll"><table><thead><tr><th class="l">Team</th>${J.criteria.map(c => `<th>${esc(c.name)}</th>`).join('')}<th>Average</th></tr></thead><tbody>
@@ -606,6 +642,15 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       </tbody></table></div></section>`;
   }
 
+  // A column A value outside A..L is dropped from the app. Saying so matters: one
+  // mistyped group letter silently removes a whole group from every grid, and on the
+  // day nobody would understand why a team cannot be scored.
+  function warnIgnored() {
+    const bad = (cfg.juries || []).filter(J => (J.ignored || []).length);
+    if (!bad.length) return '';
+    return `<div class="banner">${bad.map(J => `${esc(J.name)}: column A holds ${J.ignored.map(v => '“' + esc(v) + '”').join(', ')}, outside A–L, so ${J.ignored.length > 1 ? 'those groups are' : 'that group is'} not scorable.`).join(' ')}</div>`;
+  }
+
   function viewEnsemble() {
     const opts = [...cfg.juries.map(j => [j.id, j.name]), ['all', 'Overall ranking']];
     if (!opts.some(o => o[0] === ui.ovJury) && ui.ovJury !== 'both') ui.ovJury = cfg.juries.length > 1 ? 'both' : cfg.juries[0].id;
@@ -630,7 +675,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     } else if (ui.ovJury === 'both') {
       body = cfg.juries.map(juryTable).join('');
     } else body = juryTable(juryOf(ui.ovJury));
-    return tools + body;
+    return warnIgnored() + tools + body;
   }
 
   function viewEquipe() {
@@ -659,7 +704,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       </section>`;
   }
 
-  // One juror, every team: what the per-juror "Pax" spreadsheet tabs used to show.
+  // One jury member, every team: what the per-member "Pax" spreadsheet tabs showed.
   // Built from data the page already holds, so it costs no extra request.
   function viewJure() {
     const J = juryOf(ui.jJury); ui.jJury = J.id;
@@ -704,7 +749,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       <div class="row between">${sheet ? `<h2>${esc(J.name)}</h2><span class="muted small">Spreadsheet tab “${esc(J.name)}”</span>` : `<input type="text" id="f-${ji}-name" value="${esc(J.name)}" data-edit="${ji}.name" aria-label="Jury name" style="font:800 20px var(--font-display);flex:1 1 200px" ${dis}>`}
         ${!sheet && draft.juries.length > 1 ? `<button class="btn ghost danger" data-act="rm-jury" data-p="${ji}" ${dis}>Remove this jury</button>` : ''}</div>
       <div class="cols">
-        <div class="stack"><h3>Members (${J.members.length})</h3>${sheet ? '<p class="muted small" style="margin:0">Spreadsheet column B, duplicates removed.</p>' : '<p class="muted small" style="margin:0">First name, then last name if needed. Each juror signs in with their first name.</p>'}${list(ji, 'members', 'Member')}</div>
+        <div class="stack"><h3>Members (${J.members.length})</h3>${sheet ? '<p class="muted small" style="margin:0">Spreadsheet column B, duplicates removed.</p>' : '<p class="muted small" style="margin:0">First name, then last name if needed. Each jury member signs in with their first name.</p>'}${list(ji, 'members', 'Member')}</div>
         <div class="stack"><h3>Teams (${J.teams.length})</h3>${sheet ? '<p class="muted small" style="margin:0">Spreadsheet column A, groups A to L only.</p>' : ''}${list(ji, 'teams', 'Team')}</div>
         <div class="stack"><h3>Criteria (${J.criteria.length})</h3><p class="muted small" style="margin:0">${sheet ? 'Names: spreadsheet headers. Weight and description are set here.' : 'Defined by the jury before the presentations.'}</p>
           <div class="list">${J.criteria.map((c, i) => `<div class="critedit">
@@ -722,12 +767,12 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       </div>
       <div class="row"><label class="row" for="f-lock"><input type="checkbox" id="f-lock" data-edit="locked" ${lock ? 'checked' : ''}> Lock settings (criteria frozen)</label>
         <label class="row" for="f-closed"><input type="checkbox" id="f-closed" data-edit="closed" ${draft.closed ? 'checked' : ''}> Close scoring</label></div>
-      ${(() => { const seen = {}, dup = new Set(); draft.juries.forEach(J => J.members.forEach(m => { const f = firstName(m.name); if (!f) return; if (seen[f]) dup.add(m.name.trim().split(/\s+/)[0]); seen[f] = 1; })); return dup.size ? `<p class="banner" style="margin:0">First name shared by several jurors: ${[...dup].map(esc).join(', ')}. When signing in, they will pick their name from a list. Add the last name to tell them apart.</p>` : ''; })()}
-      ${sheet ? '<p class="banner" style="margin:0">Juries, jurors, teams and criteria come from the Google Sheet: one tab per jury (name starting with “Jury”), groups A to L in column A, jurors in column B, criteria as headers. Edit the spreadsheet and the page updates by itself within 10 to 30 seconds.</p>' : ''}
+      ${(() => { const seen = {}, dup = new Set(); draft.juries.forEach(J => J.members.forEach(m => { const f = firstName(m.name); if (!f) return; if (seen[f]) dup.add(m.name.trim().split(/\s+/)[0]); seen[f] = 1; })); return dup.size ? `<p class="banner" style="margin:0">First name shared by several jury members: ${[...dup].map(esc).join(', ')}. When signing in, they will pick their name from a list. Add the last name to tell them apart.</p>` : ''; })()}
+      ${sheet ? '<p class="banner" style="margin:0">Juries, jury members, teams and criteria come from the Google Sheet: one tab per jury (name starting with “Jury”), groups A to L in column A, jury members in column B, criteria as headers. Edit the spreadsheet and the page updates by itself within 10 to 30 seconds.</p>' : ''}
       ${nScores && !lock && !sheet ? '<p class="banner" style="margin:0">Scores have already been entered. Removing a criterion, member or team hides the matching scores.</p>' : ''}
       </section>
       <section class="card stack"><h3>Organiser access</h3>
-        <p class="muted small" style="margin:0">Settings only open by typing this password instead of a first name on the juror sign-in screen (not case-sensitive). ${customPassword ? 'A custom password is set.' : 'Current password: the default one, <b>organisateur</b>. Change it before sharing the page.'}</p>
+        <p class="muted small" style="margin:0">Settings only open by typing this password instead of a first name on the jury member sign-in screen (not case-sensitive). ${customPassword ? 'A custom password is set.' : 'Current password: the default one, <b>organisateur</b>. Change it before sharing the page.'}</p>
         <label class="field" for="f-pw" style="max-width:360px">New password<input type="password" id="f-pw" data-pw="1" value="${esc(newPw)}" autocomplete="new-password" placeholder="Leave empty to keep the current one"></label>
       </section>
       <div class="juries">${juries}</div>
@@ -784,8 +829,13 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     switch (act) {
       case 'admin-out': ui.admin = false; ui.adminKey = null; draft = null; draftDirty = false; newPw = ''; if (ui.tab === 'reglages') ui.tab = 'noter'; setMenu(false); render(); window.scrollTo(0, 0); toast('Left organiser mode'); break;
       case 'use-template': if (ui.admin) saveConfig(template()); break;
-      case 'pick-member': case 'login-pick': ui.memberId = el.dataset.id; ui.teamId = null; Object.assign(login, { value: '', error: '', matches: null }); render(); window.scrollTo(0, 0); break;
-      case 'logout': ui.memberId = null; ui.teamId = null; Object.assign(login, { value: '', error: '', matches: null }); render(); window.scrollTo(0, 0); break;
+      case 'pick-member': ui.memberId = el.dataset.id; ui.teamId = null; resetLogin(); render(); window.scrollTo(0, 0); break;
+      case 'login-jury': doJoin(el.dataset.id); break;
+      case 'login-back': Object.assign(login, { step: 'name', jury: null, member: null, error: '', busy: false }); render(); break;
+      case 'login-group':
+        ui.memberId = login.member.id; ui.juryId = login.jury; ui.teamId = el.dataset.id;
+        resetLogin(); render(); window.scrollTo(0, 0); break;
+      case 'logout': ui.memberId = null; ui.teamId = null; resetLogin(); render(); window.scrollTo(0, 0); break;
       case 'pick-team': ui.teamId = el.dataset.id; render(); if (el.dataset.top) window.scrollTo({ top: 0 }); break;
       case 'score': {
         const M = J.members.find(m => m.id === ui.memberId), T = J.teams.find(t => t.id === ui.teamId);
@@ -830,9 +880,8 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       return;
     }
     if (el.id === 'login-name') {
-      login.value = el.value; login.error = ''; login.matches = null;
+      login.name = el.value; login.error = '';
       const er = $('#login-err'); if (er) er.innerHTML = '';
-      const sg = $('#login-sugg'); if (sg) sg.innerHTML = suggHtml(el.value);
       return;
     }
     if (el.dataset.pw) {
@@ -855,20 +904,17 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     if (e.target.id !== 'login-form') return;
     e.preventDefault();
     const v = $('#login-name').value;
-    login.value = v; login.matches = null; login.error = '';
+    login.name = v; login.error = '';
     const key = await isAdminPw(v);
     if (key) {
-      ui.admin = true; ui.adminKey = key; login.value = ''; draft = null; draftDirty = false;
+      ui.admin = true; ui.adminKey = key; resetLogin(); draft = null; draftDirty = false;
       ui.tab = cfg ? 'reglages' : 'noter';
       render(); window.scrollTo(0, 0); toast('Organiser mode on'); return;
     }
-    let hits = cfg ? matchFirstName(v) : [];
-    if (!hits.length && cfg) { const s = suggest(v); if (s.length === 1) hits = s; else if (s.length > 1) hits = s; }
     if (!norm(v)) login.error = 'Enter your first name.';
     else if (!cfg) login.error = 'The event is not set up yet.';
-    else if (!hits.length) login.error = `No juror is called “${v.trim()}”. Check the spelling or ask the organiser.`;
-    else if (hits.length > 1) login.matches = hits;
-    else { ui.memberId = hits[0].m.id; ui.juryId = hits[0].J.id; ui.teamId = null; login.value = ''; }
+    else if (!cfg.juries || !cfg.juries.length) login.error = 'No jury found in the spreadsheet.';
+    else { login.name = v.replace(/\s+/g, ' ').trim(); login.step = 'jury'; }
     render();
   });
   document.addEventListener('change', e => {
@@ -913,11 +959,11 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
   else {
     mode = 'shared';
     poll().then(() => { render(); flushAll(); });
-    // Report screens: light pull every 10 s. Juror screen: every 30 s (config changes only).
+    // Report screens: light pull every 10 s. Jury member screen: every 30 s (config changes only).
     setInterval(() => {
       if (Object.keys(pending).length) flushAll();
       const report = ui.tab === 'ensemble' || ui.tab === 'equipe' || ui.tab === 'reglages';
-      if (report || Date.now() - lastPollAt >= JUROR_POLL_MS || !gotScores) poll();
+      if (report || Date.now() - lastPollAt >= MEMBER_POLL_MS || !gotScores) poll();
     }, POLL_MS);
   }
 })();

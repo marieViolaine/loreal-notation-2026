@@ -49,7 +49,8 @@ const HEAD = ['id', 'jury', 'member', 'team', 'values', 'comment', 'updatedAt', 
  * membership for every signed-in visitor, which fails with "Impossible d'ouvrir le
  * fichier pour le moment" for jurors. A standalone script in My Drive has no such check.
  */
-function doc() { return SpreadsheetApp.openById(SHEET_ID); }
+var DOC_ = null;
+function doc() { return DOC_ || (DOC_ = SpreadsheetApp.openById(SHEET_ID)); }
 
 // ---------- HTTP ----------
 function doGet(e) {
@@ -83,9 +84,10 @@ function doPost(e) {
   try { body = JSON.parse(e.postData.contents); } catch (err) { return json({ ok: false, error: 'bad_json' }); }
   if (body.action === 'admin') return json({ ok: body.key === adminHash() });
   const lock = LockService.getScriptLock();
-  if (!lock.tryLock(15000)) return json({ ok: false, error: 'busy' });
+  if (!lock.tryLock(45000)) return json({ ok: false, error: 'busy' });
   try {
     switch (body.action) {
+      case 'join': return json(joinJury(body.jury, body.name));
       case 'scores': return json(saveScores(body.docs || []));
       case 'config':
         if (body.key !== adminHash()) return json({ ok: false, error: 'forbidden' });
@@ -130,16 +132,44 @@ function readJuries() {
       criteria.push({ id: 'c' + (criteria.length + 1), name: h, col: c + 1 });
     }
     let id = 'j-' + slug(name); while (used[id]) id += '_'; used[id] = 1;
-    const members = [], teams = [], seenM = {}, seenT = {}, rows = {};
+
+    // Column A holds one run of identical letters per group: a run is a group block.
+    // The Nth row of EVERY block belongs to the same jury member, so claiming a seat
+    // takes that row in every group at once -- a member scores all the groups.
+    const blocks = [], ignored = [];
     for (let r = 1; r < data.length; r++) {
-      const g0 = String(data[r][0] || '').trim(), m = String(data[r][1] || '').trim();
-      const g = TEAMS.test(g0) ? g0.toUpperCase() : ''; // only groups A to L
-      if (g && !seenT[norm(g)]) { seenT[norm(g)] = 1; teams.push({ id: 't-' + slug(g), name: g }); }
-      if (m && !seenM[norm(m)]) { seenM[norm(m)] = 1; members.push({ id: 'm-' + slug(m), name: m }); }
-      if (g && m) rows['t-' + slug(g) + '|m-' + slug(m)] = r + 1;
+      const v = String(data[r][0] || '').trim();
+      if (!v) continue;
+      const last = blocks.length ? blocks[blocks.length - 1] : null;
+      if (last && last.raw === v) { last.count++; continue; }
+      blocks.push({ raw: v, name: v.toUpperCase(), firstIdx: r, count: 1 });
     }
+    const groups = [];
+    blocks.forEach(b => {
+      if (TEAMS.test(b.raw)) groups.push(b);
+      else if (ignored.indexOf(b.raw) < 0) ignored.push(b.raw); // outside A..L: unusable, and silent until reported
+    });
+    const seats = groups.reduce((a, b) => Math.max(a, b.count), 0);
+
+    const teams = groups.map(b => ({ id: 't-' + slug(b.name), name: b.name }));
     teams.sort((a, b) => a.name.localeCompare(b.name));
-    out.push({ id, name: name.trim(), sheet: name, members, teams, criteria, rows });
+
+    const members = [], rows = {}, seatRows = [];
+    for (let s = 0; s < seats; s++) {
+      const mid = 'm-s' + (s + 1);
+      let who = '';
+      const mine = [];
+      groups.forEach(b => {
+        if (s >= b.count) return;
+        const idx = b.firstIdx + s;
+        mine.push({ team: 't-' + slug(b.name), row: idx + 1 });
+        if (!who) { const v = String(data[idx][1] || '').trim(); if (v) who = v; }
+      });
+      mine.forEach(x => { rows[x.team + '|' + mid] = x.row; });
+      seatRows.push({ id: mid, seat: s, name: who, rows: mine.map(x => x.row) });
+      if (who) members.push({ id: mid, name: who, seat: s });
+    }
+    out.push({ id, name: name.trim(), sheet: name, members, teams, criteria, rows, seats, seatRows, ignored });
   });
   return out;
 }
@@ -153,6 +183,7 @@ function buildConfig(juries) {
     juries: juries.map(J => ({
       id: J.id, name: J.name,
       members: J.members, teams: J.teams,
+      seats: J.seats, free: Math.max(0, J.seats - J.members.length), ignored: J.ignored,
       criteria: J.criteria.map(c => {
         const o = ((st.crit || {})[J.id] || {})[c.id] || {};
         return { id: c.id, name: c.name, desc: o.desc || '', weight: +o.weight > 0 ? +o.weight : 1 };
@@ -181,6 +212,32 @@ function getState() {
   const state = { ok: true, cfg, scores, customPassword: !!PropertiesService.getScriptProperties().getProperty('ADMIN_HASH'), ts: new Date().toISOString() };
   try { cache.put('state', JSON.stringify(state), 4); } catch (err) {}
   return state;
+}
+
+// ---------- seats ----------
+/**
+ * Claims a seat on a jury for a self-declared first name, and writes that name
+ * into column B on the member's row of every group. One seat = one row index
+ * across all the group blocks, so the member scores every group.
+ */
+function joinJury(juryId, rawName) {
+  const nm = String(rawName == null ? '' : rawName).replace(/\s+/g, ' ').trim();
+  if (!nm) return { ok: false, error: 'no_name' };
+  if (nm.length > 40) return { ok: false, error: 'name_too_long' };
+  const J = readJuries().find(j => j.id === juryId);
+  if (!J) return { ok: false, error: 'unknown_jury' };
+  if (!J.seats) return { ok: false, error: 'no_seats' };
+  // The same name coming back -- another phone, a reload -- reuses its seat
+  // instead of burning a new one.
+  const again = J.seatRows.find(x => x.name && norm(x.name) === norm(nm));
+  if (again) return { ok: true, jury: J.id, member: { id: again.id, name: again.name }, reused: true };
+  const free = J.seatRows.find(x => !x.name);
+  if (!free) return { ok: false, error: 'jury_full', seats: J.seats };
+  const sh = doc().getSheetByName(J.sheet);
+  // One call for every group row of the seat: 12 setValue() in a row is the kind
+  // of cost that makes the lock overflow when a whole jury signs in at once.
+  sh.getRangeList(free.rows.map(r => 'B' + r)).setValue(nm);
+  return { ok: true, jury: J.id, member: { id: free.id, name: nm }, reused: false };
 }
 
 // ---------- scores ----------
@@ -226,10 +283,23 @@ function writeBack(juries, d) {
   const r = J.rows[d.team + '|' + d.member]; if (!r) return;
   const sh = doc().getSheetByName(J.sheet); if (!sh) return;
   const vals = d.values || {};
-  J.criteria.forEach(c => {
-    const v = vals[c.id];
-    sh.getRange(r, c.col).setValue(typeof v === 'number' ? v : '');
-  });
+  // The criteria columns are contiguous, so write the whole row in one call.
+  const cols = J.criteria.map(c => c.col);
+  const first = Math.min.apply(null, cols), last = Math.max.apply(null, cols);
+  if (last - first + 1 === cols.length) {
+    const line = [];
+    for (let c = first; c <= last; c++) {
+      const crit = J.criteria.find(x => x.col === c);
+      const v = crit ? vals[crit.id] : '';
+      line.push(typeof v === 'number' ? v : '');
+    }
+    sh.getRange(r, first, 1, line.length).setValues([line]);
+  } else {
+    J.criteria.forEach(c => {
+      const v = vals[c.id];
+      sh.getRange(r, c.col).setValue(typeof v === 'number' ? v : '');
+    });
+  }
 }
 
 function rowFor(cfg, d) {
