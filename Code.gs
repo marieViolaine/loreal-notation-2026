@@ -1,11 +1,11 @@
 /**
  * Jury scoring — Google Apps Script server
  * --------------------------------------------------------------
- * Paste into the JURY_ASSESSMENT spreadsheet: Extensions → Apps Script.
- * Then: Deploy → New deployment → type "Web app"
- *        Execute as: Me
- *        Who has access: Anyone
- * Copy the resulting URL (…/exec) into index.html (API_URL constant).
+ * Bound to the JURY_ASSESSMENT spreadsheet (Extensions → Apps Script), pushed with clasp.
+ * Deploy → New deployment → type "Web app" (appsscript.json already sets
+ * "Execute as: Me" and "Who has access: Anyone").
+ * The /exec URL serves BOTH the scoring page and its data: there is nothing to host
+ * elsewhere and no API_URL to fill in — doGet() injects it into index.html.
  *
  * SOURCE OF TRUTH = THE SPREADSHEET
  *   Every tab whose name starts with "Jury" (JURY 1, Jury 2, Jury 3…) is a jury.
@@ -41,9 +41,25 @@ const HEAD = ['id', 'jury', 'member', 'team', 'values', 'comment', 'updatedAt', 
 
 // ---------- HTTP ----------
 function doGet(e) {
-  const action = (e && e.parameter && e.parameter.action) || 'state';
+  const action = (e && e.parameter && e.parameter.action) || '';
+  if (!action) return page();                 // no action: serve the scoring page itself
   if (action === 'state') return json(getState());
   return json({ ok: false, error: 'unknown_action' });
+}
+
+/**
+ * Serves index.html from this script, with its API_URL set to this very deployment.
+ * Nothing to host elsewhere and nothing to fill in by hand: the page and the data
+ * live behind the same /exec URL.
+ */
+function page() {
+  const src = HtmlService.createHtmlOutputFromFile('index').getContent();
+  const out = src.replace(/const\s+API_URL\s*=\s*''\s*;/, 'const API_URL = ' + JSON.stringify(ScriptApp.getService().getUrl()) + ';');
+  if (out === src) throw new Error('API_URL placeholder not found in index.html');
+  return HtmlService.createHtmlOutput(out)
+    .setTitle('Jury scoring')
+    .addMetaTag('viewport', 'width=device-width,initial-scale=1,viewport-fit=cover')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 function doPost(e) {
