@@ -1,7 +1,8 @@
 /**
  * Jury scoring — Google Apps Script server
  * --------------------------------------------------------------
- * Bound to the JURY_ASSESSMENT spreadsheet (Extensions → Apps Script), pushed with clasp.
+ * STANDALONE script (My Drive, not bound, not in a Shared Drive), pushed with clasp.
+ * It opens the JURY_ASSESSMENT spreadsheet by id — see ss() and config.gs.
  * Deploy → New deployment → type "Web app" (appsscript.json already sets
  * "Execute as: Me" and "Who has access: Anyone").
  * The /exec URL serves BOTH the scoring page and its data: there is nothing to host
@@ -38,6 +39,17 @@ const DEFAULT_SETTINGS = { title: 'Team presentations', scale: { min: 1, max: 4 
 const HEAD = ['id', 'jury', 'member', 'team', 'values', 'comment', 'updatedAt', 'Jury', 'Member', 'Team']
   .concat(Array.from({ length: MAX_CRIT }, (_, i) => 'Score ' + (i + 1)))
   .concat(['Average', 'Comment']);
+
+/**
+ * The spreadsheet this app reads and writes.
+ * SHEET_ID lives in config.gs, which is NOT versioned (public repo) — see README.
+ *
+ * Deliberately a STANDALONE script opening the sheet by id, not a bound script:
+ * a script bound to a file inside a Shared Drive makes Google check Shared Drive
+ * membership for every signed-in visitor, which fails with "Impossible d'ouvrir le
+ * fichier pour le moment" for jurors. A standalone script in My Drive has no such check.
+ */
+function ss() { return SpreadsheetApp.openById(SHEET_ID); }
 
 // ---------- HTTP ----------
 function doGet(e) {
@@ -103,7 +115,7 @@ function slug(s) { return norm(s).replace(/ /g, '-') || 'x'; }
 function readJuries() {
   const out = [];
   const used = {};
-  SpreadsheetApp.getActive().getSheets().forEach(sh => {
+  ss().getSheets().forEach(sh => {
     const name = sh.getName();
     if (!JURY_PREFIX.test(name)) return;
     const lastRow = sh.getLastRow(), lastCol = sh.getLastColumn();
@@ -173,7 +185,7 @@ function getState() {
 
 // ---------- scores ----------
 function notesSheet() {
-  const ss = SpreadsheetApp.getActive();
+  const ss = ss();
   let sh = ss.getSheetByName(NOTES_SHEET);
   if (!sh) {
     sh = ss.insertSheet(NOTES_SHEET);
@@ -212,7 +224,7 @@ function saveScores(docs) {
 function writeBack(juries, d) {
   const J = juries.find(j => j.id === d.jury); if (!J || !J.criteria.length) return;
   const r = J.rows[d.team + '|' + d.member]; if (!r) return;
-  const sh = SpreadsheetApp.getActive().getSheetByName(J.sheet); if (!sh) return;
+  const sh = ss().getSheetByName(J.sheet); if (!sh) return;
   const vals = d.values || {};
   J.criteria.forEach(c => {
     const v = vals[c.id];
@@ -245,7 +257,7 @@ function clearNotes() {
   if (n > 0) sh.deleteRows(2, n);
   if (!WRITE_BACK) return;
   readJuries().forEach(J => {
-    const s = SpreadsheetApp.getActive().getSheetByName(J.sheet);
+    const s = ss().getSheetByName(J.sheet);
     const last = s.getLastRow();
     if (last > 1) J.criteria.forEach(c => s.getRange(2, c.col, last - 1, 1).clearContent());
   });
@@ -253,7 +265,7 @@ function clearNotes() {
 
 // ---------- settings ----------
 function readSettings() {
-  const sh = SpreadsheetApp.getActive().getSheetByName(CONFIG_SHEET);
+  const sh = ss().getSheetByName(CONFIG_SHEET);
   const raw = sh ? String(sh.getRange('A1').getValue() || '') : '';
   if (!raw) return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
   try { return Object.assign(JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), JSON.parse(raw)); } catch (err) { return JSON.parse(JSON.stringify(DEFAULT_SETTINGS)); }
@@ -272,7 +284,7 @@ function writeSettings(cfg) {
     scale: { min: Math.round(+((cfg.scale || {}).min) || 1), max: Math.round(+((cfg.scale || {}).max) || 4) },
     locked: !!cfg.locked, closed: !!cfg.closed, crit
   };
-  const ss = SpreadsheetApp.getActive();
+  const ss = ss();
   let sh = ss.getSheetByName(CONFIG_SHEET);
   if (!sh) { sh = ss.insertSheet(CONFIG_SHEET); sh.getRange('B1').setValue('Do not edit by hand: settings managed by the scoring page.'); }
   sh.getRange('A1').setValue(JSON.stringify(st));
