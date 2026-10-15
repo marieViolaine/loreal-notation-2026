@@ -31,7 +31,10 @@ const JURY_PREFIX = /^\s*jury\b/i;
 const STOP_HEADERS = /^(average|moyenne|completion|compl[eé]tion|total|rang|rank)$/i;
 const NOTES_SHEET = 'APP_NOTES';
 const CONFIG_SHEET = 'APP_CONFIG';
-const WEIGHT_SHEET = 'PONDERATION-JURY'; // NOM_CRITERE | JURY | PONDERATION
+const WEIGHT_SHEET = 'PONDERATION-JURY'; // NOM_CRITERE | JURY | PONDERATION | Vue_coup_coeur
+// Column D marks the criteria that also feed the "Favourite" average. Accepts the
+// spellings a spreadsheet actually produces, in either language.
+const FAV_YES = /^(true|vrai|oui|yes|x|o|y|1|\u2713|\u2714)$/i;
 const WRITE_BACK = true; // also write scores into the "Jury N" tabs
 const MAX_CRIT = 10;
 const DEFAULT_HASH = 'eb84789239978c5b66ad35a3d0a816b214a1144b44060af4f6be6b5a6c31c7a3'; // "organisateur"
@@ -203,12 +206,13 @@ function matchJury(juries, name) {
  * criterion at weight 1, which is invisible and changes every average.
  */
 function readWeights(juries) {
-  const out = { byKey: {}, ignored: [] };
+  const out = { byKey: {}, favByKey: {}, ignored: [] };
   const sh = doc().getSheetByName(WEIGHT_SHEET);
   if (!sh) return out;
   const lastRow = sh.getLastRow(), lastCol = sh.getLastColumn();
   if (lastRow < 2 || lastCol < 3) return out;
-  const data = sh.getRange(2, 1, lastRow - 1, 3).getDisplayValues();
+  const width = Math.min(4, lastCol);
+  const data = sh.getRange(2, 1, lastRow - 1, width).getDisplayValues();
   data.forEach((r, i) => {
     const cname = String(r[0] || '').trim();
     const jname = String(r[1] || '').trim();
@@ -217,9 +221,15 @@ function readWeights(juries) {
     const w = parseFloat(raw);
     const J = matchJury(juries, jname);
     const c = J ? J.criteria.filter(x => norm(x.name) === norm(cname))[0] : null;
-    if (!J || !c || !isFinite(w) || w <= 0) {
-      out.ignored.push({ row: i + 2, criterion: cname, jury: jname, weight: raw,
-        why: !J ? 'jury' : !c ? 'criterion' : 'weight' });
+    if (!J || !c) {
+      out.ignored.push({ row: i + 2, criterion: cname, jury: jname, weight: raw, why: !J ? 'jury' : 'criterion' });
+      return;
+    }
+    // The row points at a real criterion, so honour its Favourite mark even if the
+    // weight itself is unusable -- the two are independent.
+    if (width >= 4 && FAV_YES.test(String(r[3] || '').trim())) out.favByKey[J.id + '|' + c.id] = true;
+    if (!isFinite(w) || w <= 0) {
+      out.ignored.push({ row: i + 2, criterion: cname, jury: jname, weight: raw, why: 'weight' });
       return;
     }
     out.byKey[J.id + '|' + c.id] = w;
@@ -245,7 +255,8 @@ function buildConfig(juries) {
         // the spreadsheet is the source of truth.
         const fromSheet = W.byKey[J.id + '|' + c.id];
         return { id: c.id, name: c.name, desc: o.desc || '',
-          weight: fromSheet != null ? fromSheet : (+o.weight > 0 ? +o.weight : 1) };
+          weight: fromSheet != null ? fromSheet : (+o.weight > 0 ? +o.weight : 1),
+          fav: !!W.favByKey[J.id + '|' + c.id] };
       })
     }))
   };

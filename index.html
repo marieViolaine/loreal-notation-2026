@@ -305,6 +305,8 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
   const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
   const wavg = pairs => { let s = 0, w = 0; for (const p of pairs) { s += p.v * p.w; w += p.w; } return w > 0 ? s / w : null; };
   const weight = c => (isNum(+c.weight) && +c.weight > 0) ? +c.weight : 1;
+  // Criteria marked Vue_coup_coeur in PONDERATION-JURY feed a second, narrower average.
+  const hasFav = J => (J.criteria || []).some(c => c.fav);
   const juryOf = id => cfg?.juries.find(j => j.id === id) || cfg?.juries[0];
   const scale = () => { const min = Math.round(+cfg?.scale?.min || 1), max = Math.round(+cfg?.scale?.max || 4); return { min, max: Math.max(min + 1, Math.min(min + 20, max)) }; };
   const heat = v => { if (!isNum(v)) return ''; const { min, max } = scale(); const k = Math.round(8 + 52 * (v - min) / (max - min)); return `background: color-mix(in srgb, var(--accent) ${k}%, var(--surface)); color: ${k > 40 ? 'var(--accent-ink)' : 'var(--ink)'}`; };
@@ -363,10 +365,12 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const critAvg = {};
     J.criteria.forEach(c => { critAvg[c.id] = mean(ms.map(x => x.vals[c.id]).filter(isNum)); });
     const provisional = wavg(J.criteria.filter(c => critAvg[c.id] != null).map(c => ({ v: critAvg[c.id], w: weight(c) })));
+    // Same weighting, but only over the criteria flagged Vue_coup_coeur.
+    const favAvg = wavg(J.criteria.filter(c => c.fav && critAvg[c.id] != null).map(c => ({ v: critAvg[c.id], w: weight(c) })));
     // Always the live mean of the scores received. Withholding it until every
     // signed-in member had scored made the views show nothing at all: three people
     // who sign in without scoring used to blank out every team.
-    return { t, J, ms, total, filled, complete, ratio: total ? filled / total : 0, critAvg, avg: provisional };
+    return { t, J, ms, total, filled, complete, ratio: total ? filled / total : 0, critAvg, avg: provisional, favAvg };
   }
   function rankList(stats) {
     const key = s => s.avg;
@@ -664,12 +668,12 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       <div class="row between"><h2>${esc(J.name)}</h2>
         <div class="kpis"><div class="kpi"><b>${total ? pct(filled / total) : '–'}</b><span>of scores entered</span></div><div class="kpi"><b>${doneTeams}/${J.teams.length}</b><span>teams fully scored</span></div></div></div>
       <div class="pills" aria-label="Progress by member">${memberPills}</div>
-      <div class="tscroll"><table><thead><tr><th>Rank</th><th class="l">Team</th>${J.criteria.map(c => `<th>${esc(c.name)}</th>`).join('')}<th>Average</th><th class="l">Progress</th></tr></thead><tbody>
+      <div class="tscroll"><table><thead><tr><th>Rank</th><th class="l">Team</th>${J.criteria.map(c => `<th>${esc(c.name)}</th>`).join('')}<th>Average</th>${hasFav(J) ? '<th>Favourite</th>' : ''}<th class="l">Progress</th></tr></thead><tbody>
       ${stats.map(s => `<tr class="click" data-act="open-team" data-j="${esc(J.id)}" data-id="${esc(s.t.id)}">
         <td>${s.rank ? `<span class="rank ${s.rank === 1 ? 'r1' : ''}">${s.rank}</span>` : '<span class="muted">–</span>'}</td>
         <td class="l"><b>${esc(s.t.name)}</b></td>
         ${J.criteria.map(c => `<td>${fmt(s.critAvg[c.id])}</td>`).join('')}
-        <td class="avg">${fmt(s.avg)}</td>
+        <td class="avg">${fmt(s.avg)}</td>${hasFav(J) ? `<td class="avg">${fmt(s.favAvg)}</td>` : ''}
         <td class="l"><span class="bar"><i style="width:${Math.round(s.ratio * 100)}%"></i></span><span class="small muted">${pct(s.ratio)}</span></td></tr>`).join('')}
       </tbody></table></div></section>`;
   }
@@ -700,10 +704,10 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     if (ui.ovJury === 'all') {
       const stats = rankList(cfg.juries.flatMap(J => J.teams.map(t => teamStat(J, t))));
       body = `<section class="card stack"><div class="row between"><h2>Overall ranking</h2><span class="muted small">All juries combined, on the same ${scale().min} to ${scale().max} scale</span></div>
-        <div class="tscroll"><table><thead><tr><th>Rank</th><th class="l">Team</th><th class="l">Jury</th><th>Average</th><th class="l">Progress</th></tr></thead><tbody>
+        <div class="tscroll"><table><thead><tr><th>Rank</th><th class="l">Team</th><th class="l">Jury</th><th>Average</th>${cfg.juries.some(hasFav) ? '<th>Favourite</th>' : ''}<th class="l">Progress</th></tr></thead><tbody>
         ${stats.map(s => `<tr class="click" data-act="open-team" data-j="${esc(s.J.id)}" data-id="${esc(s.t.id)}"><td>${s.rank ? `<span class="rank ${s.rank === 1 ? 'r1' : ''}">${s.rank}</span>` : '<span class="muted">–</span>'}</td>
           <td class="l"><b>${esc(s.t.name)}</b></td><td class="l muted">${esc(s.J.name)}</td>
-          <td class="avg">${fmt(s.avg)}</td>
+          <td class="avg">${fmt(s.avg)}</td>${cfg.juries.some(hasFav) ? `<td class="avg">${fmt(s.favAvg)}</td>` : ''}
           <td class="l"><span class="bar"><i style="width:${Math.round(s.ratio * 100)}%"></i></span><span class="small muted">${pct(s.ratio)}</span></td></tr>`).join('')}
         </tbody></table></div>
         ${cfg.juries.some(J => J.criteria.map(c => c.name).join('|') !== cfg.juries[0].criteria.map(c => c.name).join('|')) ? '<p class="banner" style="margin:0">The juries do not use the same criteria: compare this ranking with care.</p>' : ''}</section>`;
