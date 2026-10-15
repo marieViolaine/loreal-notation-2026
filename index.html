@@ -526,8 +526,12 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
 
   function resetLogin() { Object.assign(login, { step: 'name', name: '', jury: null, member: null, error: '', busy: false, busyId: null }); }
 
-  function findMember(id) {
-    for (const J of cfg.juries) { const m = J.members.find(x => x.id === id); if (m) return { J, m }; }
+  // Seat ids are per jury, not global: m-s1..m-s6 exist in BOTH juries and name
+  // different people. Searching every jury returned the first jury's holder, so a
+  // JURY F member was matched against JURY K's seat and bounced back to sign-in.
+  function findMember(id, juryId) {
+    const list = juryId ? [juryOf(juryId)].filter(Boolean) : cfg.juries;
+    for (const J of list) { const m = J.members.find(x => x.id === id); if (m) return { J, m }; }
     return null;
   }
   // Sign-in is a declaration, not a lookup: the spreadsheet no longer carries the
@@ -626,7 +630,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
   }
 
   function viewNoter() {
-    const found = ui.memberId ? findMember(ui.memberId) : null;
+    const found = ui.memberId ? findMember(ui.memberId, ui.juryId) : null;
     if (!found) { ui.memberId = null; ui.memberName = null; return viewLogin(); }
     // The seat is remembered on this phone, so check it is still ours: clearing
     // column B frees it, and somebody else may now be sitting there.
