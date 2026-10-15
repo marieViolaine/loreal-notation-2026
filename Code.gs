@@ -87,6 +87,7 @@ function doPost(e) {
   try {
     switch (body.action) {
       case 'join': return json(joinJury(body.jury, body.name));
+      case 'leave': return json(leaveJury(body.jury, body.member));
       case 'scores': return json(saveScores(body.docs || []));
       case 'config':
         if (body.key !== adminHash()) return json({ ok: false, error: 'forbidden' });
@@ -261,6 +262,34 @@ function wipeSeat(J, seat) {
   const first = Math.min.apply(null, cols), last = Math.max.apply(null, cols);
   const js = doc().getSheetByName(J.sheet);
   if (js) seat.rows.forEach(r => js.getRange(r, first, 1, last - first + 1).clearContent());
+}
+
+/**
+ * Gives a seat back: clears the name from column B on all of its group rows.
+ *
+ * Refused as soon as the seat holds a single score, because a seat without a
+ * name is a free seat and the next person to claim it wipes its history. Someone
+ * who picked the wrong jury can undo it; someone who has started scoring cannot
+ * undo it by accident.
+ */
+function leaveJury(juryId, memberId) {
+  const J = readJuries().find(j => j.id === juryId);
+  if (!J) return { ok: false, error: 'unknown_jury' };
+  const seat = J.seatRows.find(x => x.id === memberId);
+  if (!seat) return { ok: false, error: 'unknown_seat' };
+  if (!seat.name) return { ok: true, already: true };
+  const prefix = J.id + '__' + seat.id + '__';
+  const sh = notesSheet();
+  const n = sh.getLastRow() - 1;
+  if (n > 0) {
+    const ids = sh.getRange(2, 1, n, 1).getValues();
+    for (let i = 0; i < ids.length; i++) {
+      if (String(ids[i][0] || '').indexOf(prefix) === 0) return { ok: false, error: 'has_scores' };
+    }
+  }
+  const js = doc().getSheetByName(J.sheet);
+  if (js && seat.rows.length) js.getRangeList(seat.rows.map(r => 'B' + r)).clearContent();
+  return { ok: true };
 }
 
 // ---------- scores ----------

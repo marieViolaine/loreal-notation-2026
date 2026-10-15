@@ -249,7 +249,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
   let scores = {};           // id -> {jury, member, team, values:{critId:n}, comment}
   let draft = null, draftDirty = false, newPw = '';
   const writing = {}, again = {}, cmtTimers = {};
-  let armedClear = false, menuOpen = false;
+  let armedClear = false, armedLeave = false, menuOpen = false;
   // Offline resilience: every local change is queued in `pending` (persisted in localStorage)
   // until the shared store confirms it; remote snapshots never overwrite a pending entry.
   let pending = {}, syncFail = false, lastPull = null, polling = false, flushingAll = false, gotScores = false;
@@ -343,7 +343,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     $('#here').textContent = LABELS[ui.tab] || '';
   }
   function go(tab) {
-    ui.tab = tab; if (ui.tab !== 'reglages' && !draftDirty) draft = null; armedClear = false;
+    ui.tab = tab; if (ui.tab !== 'reglages' && !draftDirty) draft = null; armedClear = false; armedLeave = false;
     setMenu(false); render(); window.scrollTo(0, 0);
   }
 
@@ -528,7 +528,6 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     return `<section class="card stack login">
       <span class="eyebrow">Jury member area</span>
       <h2>What is your first name?</h2>
-      <p class="muted" style="margin:0">You pick your jury next. This phone stays signed in until you switch jury member.</p>
       <form id="login-form" class="row" autocomplete="off">
         <input type="text" id="login-name" value="${esc(login.name || '')}" placeholder="Your first name" aria-label="Your first name" autocapitalize="words" spellcheck="false" style="flex:1 1 180px;font-size:17px;padding:12px 14px">
         <button class="btn primary${login.busy ? ' loading' : ''}" type="submit" ${login.busy ? 'aria-busy="true"' : ''} style="padding:12px 18px;flex:1 1 auto">Continue</button>
@@ -566,6 +565,24 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     </section>`;
   }
 
+  // Gives the seat back, so the name leaves column B and somebody else can take it.
+  // Only offered while this member has no scores at all: the server refuses
+  // otherwise, since freeing a seat lets the next occupant wipe its history.
+  async function doLeave() {
+    const J = juryOf(ui.juryId);
+    try {
+      await api({ action: 'leave', jury: ui.juryId, member: ui.memberId });
+      toast('Your name was removed from ' + (J ? J.name : 'the jury'));
+      ui.memberId = null; ui.memberName = null; ui.teamId = null; resetLogin();
+      poll(); render(); window.scrollTo(0, 0);
+    } catch (err) {
+      toast(err && err.code === 'has_scores'
+        ? 'Scores are already recorded on this jury: ask the organiser.'
+        : 'Could not leave the jury. Try again.');
+      render();
+    }
+  }
+
   // Claims the seat server-side. The same first name coming back on another phone
   // gets its seat again instead of consuming a new one.
   async function doJoin(juryId) {
@@ -600,7 +617,10 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const { J, m: M } = found; ui.juryId = J.id;
     const head = `<div class="row between">
       <div class="stack" style="gap:2px"><span class="eyebrow">Personal grid · ${esc(J.name)}</span><h2>${esc(M.name)}</h2></div>
-      <button class="btn ghost" data-act="logout">Not me · switch jury member</button></div>`;
+      <div class="row">${J.teams.reduce((a, t) => a + memberStat(J, M, t).filled, 0) === 0
+        ? `<button class="btn ghost ${armedLeave ? 'armed' : ''}" data-act="leave">${armedLeave ? `Confirm: leave ${esc(J.name)}` : 'Wrong jury?'}</button>`
+        : ''}
+      <button class="btn ghost" data-act="logout">Not me · switch jury member</button></div></div>`;
     if (!J.criteria.length) return head + `<div class="card empty"><h3>The criteria are not defined yet</h3><p class="muted">The organiser enters them in Settings before the first presentation.</p></div>`;
     if (!J.teams.length) return head + `<div class="card empty"><h3>No teams for this jury</h3></div>`;
     const T = J.teams.find(t => t.id === ui.teamId) || J.teams[0]; ui.teamId = T.id;
@@ -828,6 +848,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const el = e.target.closest('[data-act]'); if (!el) return;
     const act = el.dataset.act;
     if (act !== 'clear') armedClear = false;
+    if (act !== 'leave') armedLeave = false;
     const J = juryOf(ui.juryId);
     switch (act) {
       case 'admin-out': ui.admin = false; ui.adminKey = null; draft = null; draftDirty = false; newPw = ''; if (ui.tab === 'reglages') ui.tab = 'noter'; setMenu(false); render(); window.scrollTo(0, 0); toast('Left organiser mode'); break;
@@ -873,6 +894,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       })(); break;
       case 'cancel-cfg': draft = null; draftDirty = false; newPw = ''; render(); break;
       case 'clear': if (armedClear) { armedClear = false; clearScores(); } else { armedClear = true; render(); } break;
+      case 'leave': if (armedLeave) { armedLeave = false; doLeave(); } else { armedLeave = true; render(); } break;
     }
   });
   document.addEventListener('input', e => {
