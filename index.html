@@ -235,10 +235,11 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
 <script>
 (() => {
   // ---------- state ----------
-  // ================= TO FILL IN =================
-  // Apps Script web app URL (Deploy → Web app), ending with /exec
-  const API_URL = '';
-  // =================================================
+  // Apps Script web app URL (…/exec). It only serves data: no Google sign-in,
+  // because fetch() bypasses the Drive routing that breaks the HTML page for
+  // visitors signed into several Google accounts.
+  // When Apps Script serves this file itself, doGet() rewrites this line with its own URL.
+  const API_URL = 'https://script.google.com/macros/s/AKfycbxkIEfKUJJ0LzoGvUWSjXfzZe8CwOX17dJ9kdo778-PfSzz6qlFZb6sgMQShQwvP6-R/exec';
   let mode = 'loading'; // loading | cached | shared | local (local = empty API_URL, preview)
   let customPassword = false;
   let cfg = null;            // config/main

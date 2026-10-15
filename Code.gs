@@ -58,8 +58,8 @@ function page() {
   // account chooser.
   const url = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros\//, '/macros/');
   const src = HtmlService.createHtmlOutputFromFile('index').getContent();
-  const out = src.replace(/const\s+API_URL\s*=\s*''\s*;/, 'const API_URL = ' + JSON.stringify(url) + ';');
-  if (out === src) throw new Error('API_URL placeholder not found in index.html');
+  const out = src.replace(/const\s+API_URL\s*=\s*'[^']*'\s*;/, 'const API_URL = ' + JSON.stringify(url) + ';');
+  if (out === src) throw new Error('API_URL assignment not found in index.html');
   return HtmlService.createHtmlOutput(out)
     .setTitle('Jury scoring')
     .addMetaTag('viewport', 'width=device-width,initial-scale=1,viewport-fit=cover')

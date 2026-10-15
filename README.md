@@ -3,22 +3,32 @@
 Page web (en anglais) de notation des présentations d'équipes par les jurés, sur téléphone.
 Les notes sont stockées dans le Google Sheet **JURY_ASSESSMENT** via un script Apps Script.
 
-- `index.html` : la page (un seul fichier, à déposer sur n'importe quel hébergement statique en **https**).
-- `Code.gs` : le serveur Google Apps Script, à coller dans le tableur.
+- `index.html` : la page, un seul fichier autonome, servie par **GitHub Pages**.
+- `Code.gs` : le serveur Google Apps Script, lié au tableur et déployé avec `clasp`.
+- `appsscript.json` : le manifeste ; il fixe déjà « Exécuter en tant que : moi » et « Qui a accès : tout le monde ».
 
-## Mise en route (une fois, ~5 min)
+## Mise en route
 
-1. Ouvrir le tableur JURY_ASSESSMENT → **Extensions → Apps Script**.
-2. Remplacer le contenu de `Code.gs` par celui de ce dépôt, puis enregistrer.
-3. **Déployer → Nouveau déploiement** → type **Application web**
-   - Exécuter en tant que : **Moi**
-   - Qui a accès : **Tout le monde**
-   - Autoriser l'accès demandé par Google.
-4. Copier l'URL de l'application web (elle se termine par `/exec`).
-5. Dans `index.html`, renseigner `const API_URL = '…/exec';`.
-6. Déposer `index.html` sur l'hébergement et partager le lien aux jurés.
+Le script est **lié** au tableur JURY_ASSESSMENT (Extensions → Apps Script) et se déploie en ligne de commande :
 
-Après une modification de `Code.gs` : **Déployer → Gérer les déploiements → Modifier → Nouvelle version** (l'URL reste la même).
+```bash
+clasp push                                 # envoie Code.gs, index.html, appsscript.json
+clasp update-deployment <deploymentId>     # nouvelle version ; l'URL /exec ne change pas
+```
+
+`.clasp.json` n'est pas versionné, il contient les ID du script et du tableur. Le recréer avec
+`clasp create-script --parentId <id du tableur>`, ou le demander à l'équipe.
+
+### Pourquoi la page n'est pas servie par Apps Script
+
+`doGet()` sait servir `index.html` lui-même, ce qui est pratique pour tester, mais une page HTML servie
+par Apps Script passe par le routage Drive : il échoue avec **« Impossible d'ouvrir le fichier pour le
+moment »** pour tout visiteur connecté à plusieurs comptes Google. Les jurés ouvrent donc la page sur
+GitHub Pages, et seules les **données** viennent d'Apps Script via `fetch`, qui n'est pas concerné par ce
+routage. Résultat : aucune connexion Google n'est nécessaire, ni pour ouvrir la page, ni pour noter.
+
+`API_URL`, dans `index.html`, pointe sur l'URL `/exec` du déploiement. Quand c'est Apps Script qui sert
+la page, `doGet()` réécrit cette ligne avec sa propre URL.
 
 ## Utilisation
 
