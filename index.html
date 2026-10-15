@@ -372,8 +372,8 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     // who sign in without scoring used to blank out every team.
     return { t, J, ms, total, filled, complete, ratio: total ? filled / total : 0, critAvg, avg: provisional, favAvg };
   }
-  function rankList(stats) {
-    const key = s => s.avg;
+  function rankList(stats, pick) {
+    const key = pick || (s => s.avg);
     const sorted = [...stats].sort((a, b) => {
       const ka = key(a), kb = key(b);
       if (ka == null && kb == null) return b.ratio - a.ratio;
@@ -691,6 +691,24 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     return `<div class="banner">PONDERATION-JURY: ${bad.length} row${bad.length > 1 ? 's' : ''} ignored, so ${bad.length > 1 ? 'those criteria keep' : 'that criterion keeps'} a weight of 1 — ${show}${rest}.</div>`;
   }
 
+  // Ranked on the flagged criteria alone, under the overall ranking. Teams with
+  // nothing scored on those criteria are left out rather than padding the table
+  // with empty cells, and the overall average sits alongside for comparison.
+  function favSection() {
+    if (!cfg.juries.some(hasFav)) return '';
+    const stats = rankList(cfg.juries.flatMap(J => J.teams.map(t => teamStat(J, t))).filter(x => x.favAvg != null), x => x.favAvg);
+    const counted = cfg.juries.filter(hasFav).map(J => `${esc(J.name)}: ${J.criteria.filter(c => c.fav).map(c => esc(c.name)).join(', ')}`).join(' \u00b7 ');
+    return `<section class="card stack">
+      <div class="row between"><h2>\u2764\ufe0f Favourite ranking</h2><span class="muted small">Flagged in PONDERATION-JURY \u2014 ${counted}</span></div>
+      ${stats.length ? `<div class="tscroll"><table><thead><tr><th>Rank</th><th class="l">Team</th><th class="l">Jury</th><th>\u2764\ufe0f Favourite</th><th>Overall</th></tr></thead><tbody>
+      ${stats.map(x => `<tr class="click" data-act="open-team" data-j="${esc(x.J.id)}" data-id="${esc(x.t.id)}">
+        <td>${x.rank ? `<span class="rank ${x.rank === 1 ? 'r1' : ''}">${x.rank}</span>` : '<span class="muted">\u2013</span>'}</td>
+        <td class="l"><b>${esc(x.t.name)}</b></td><td class="l muted">${esc(x.J.name)}</td>
+        <td class="avg">${fmt(x.favAvg)}</td><td class="muted">${fmt(x.avg)}</td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="muted" style="margin:0">No team has been scored on the flagged criteria yet.</p>'}
+    </section>`;
+  }
+
   function viewEnsemble() {
     const opts = [...cfg.juries.map(j => [j.id, j.name]), ['all', 'Overall ranking']];
     if (!opts.some(o => o[0] === ui.ovJury) && ui.ovJury !== 'both') ui.ovJury = cfg.juries.length > 1 ? 'both' : cfg.juries[0].id;
@@ -710,7 +728,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
           <td class="avg">${fmt(s.avg)}</td>${cfg.juries.some(hasFav) ? `<td class="avg">${fmt(s.favAvg)}</td>` : ''}
           <td class="l"><span class="bar"><i style="width:${Math.round(s.ratio * 100)}%"></i></span><span class="small muted">${pct(s.ratio)}</span></td></tr>`).join('')}
         </tbody></table></div>
-        ${cfg.juries.some(J => J.criteria.map(c => c.name).join('|') !== cfg.juries[0].criteria.map(c => c.name).join('|')) ? '<p class="banner" style="margin:0">The juries do not use the same criteria: compare this ranking with care.</p>' : ''}</section>`;
+        ${cfg.juries.some(J => J.criteria.map(c => c.name).join('|') !== cfg.juries[0].criteria.map(c => c.name).join('|')) ? '<p class="banner" style="margin:0">The juries do not use the same criteria: compare this ranking with care.</p>' : ''}</section>` + favSection();
     } else if (ui.ovJury === 'both') {
       body = cfg.juries.map(juryTable).join('');
     } else body = juryTable(juryOf(ui.ovJury));
