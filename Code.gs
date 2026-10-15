@@ -34,7 +34,7 @@ const CONFIG_SHEET = 'APP_CONFIG';
 const WRITE_BACK = true; // also write scores into the "Jury N" tabs
 const MAX_CRIT = 10;
 const DEFAULT_HASH = 'eb84789239978c5b66ad35a3d0a816b214a1144b44060af4f6be6b5a6c31c7a3'; // "organisateur"
-const DEFAULT_SETTINGS = { title: 'Team presentations', scale: { min: 1, max: 4 }, locked: false, closed: false, crit: {} };
+const DEFAULT_SETTINGS = { title: 'Business lab', scale: { min: 1, max: 4 }, locked: false, closed: false, crit: {} };
 const HEAD = ['id', 'jury', 'member', 'team', 'values', 'comment', 'updatedAt', 'Jury', 'Member', 'Team']
   .concat(Array.from({ length: MAX_CRIT }, (_, i) => 'Score ' + (i + 1)))
   .concat(['Average', 'Comment']);
@@ -73,7 +73,7 @@ function page() {
   const out = src.replace(/const\s+API_URL\s*=\s*'[^']*'\s*;/, 'const API_URL = ' + JSON.stringify(url) + ';');
   if (out === src) throw new Error('API_URL assignment not found in index.html');
   return HtmlService.createHtmlOutput(out)
-    .setTitle('Jury scoring')
+    .setTitle('Business lab')
     .addMetaTag('viewport', 'width=device-width,initial-scale=1,viewport-fit=cover')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }

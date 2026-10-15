@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Jury scoring</title>
+<title>Business lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap">
@@ -222,7 +222,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
 <header class="top">
   <div class="wrap">
     <button class="burger" id="burger" aria-expanded="false" aria-controls="menu" aria-label="Open menu"><span></span><span></span><span></span></button>
-    <div class="brand"><b id="ev-title">Jury scoring</b><span id="ev-sub">Loading…</span></div>
+    <div class="brand"><b id="ev-title">Business lab</b><span id="ev-sub">Loading…</span></div>
     <button class="sync" id="sync" type="button" aria-live="polite"><i></i><span class="t">Connecting…</span></button>
     <span class="here" id="here"></span>
     <nav class="menu" id="menu" aria-label="Views" hidden></nav>
@@ -485,7 +485,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const mk = (names, p) => names.map(n => ({ id: uid(p), name: n }));
     const crit = () => [1, 2, 3, 4].map(i => ({ id: uid('c'), name: 'Criterion ' + i, desc: '', weight: 1 }));
     return {
-      title: 'Team presentations', scale: { min: 1, max: 4 }, locked: false, closed: false,
+      title: 'Business lab', scale: { min: 1, max: 4 }, locked: false, closed: false,
       juries: [
         { id: 'j1', name: 'Jury 1', members: mk(['Member 1', 'Member 2', 'Member 3', 'Member 4', 'Member 5', 'Member 6'], 'm'), teams: mk(TEAM_LETTERS, 't'), criteria: crit() },
         { id: 'j2', name: 'Jury 2', members: mk(['Member 7', 'Member 8', 'Member 9', 'Member 10', 'Member 11', 'Member 12'], 'm'), teams: mk(TEAM_LETTERS, 't'), criteria: crit() }
@@ -790,7 +790,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     if (ui.tab === 'reglages' && (!ui.admin || !cfg)) ui.tab = 'noter';
     renderMenu(); renderSync();
     if (mode === 'loading') return;
-    $('#ev-title').textContent = cfg?.title || 'Jury scoring';
+    $('#ev-title').textContent = cfg?.title || 'Business lab';
     $('#ev-sub').textContent = cfg ? cfg.juries.map(j => `${j.name} · ${j.members.length}/${j.seats || j.members.length} jury members · ${j.teams.length} groups`).join('  /  ') : 'Not set up';
     const a = document.activeElement, keep = a && a.id && a.closest('#app') ? { id: a.id, s: a.selectionStart, e: a.selectionEnd, v: a.value } : null;
     let html = mode === 'local' ? '<div class="banner">Local preview: scores are neither shared nor kept. Open the published page to score together.</div>'
