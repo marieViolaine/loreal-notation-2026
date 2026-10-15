@@ -651,7 +651,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const tools = `<div class="row between">${seg}
       <div class="row"><label class="row small" for="prov"><input type="checkbox" id="prov" ${ui.prov ? 'checked' : ''}> Show provisional averages</label>
       <button class="btn ghost" data-act="export">Export CSV</button></div></div>
-      <p class="muted small" style="margin:0">An average appears once all ${cfg.juries[0]?.members.length || 6} members have scored every criterion. Provisional averages, in italics, use the scores entered so far.</p>`;
+      <p class="muted small" style="margin:0">A team's average appears once every signed-in jury member has scored all of its criteria — so it also moves when somebody signs in later. ${cfg.juries.map(J => `${esc(J.name)}: ${J.members.length}/${J.seats || J.members.length} seats signed in`).join(' · ')}. Provisional averages, in italics, use the scores entered so far.</p>`;
     let body = '';
     if (ui.ovJury === 'all') {
       const stats = rankList(cfg.juries.flatMap(J => J.teams.map(t => teamStat(J, t))), ui.prov);
