@@ -668,7 +668,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       <div class="row between"><h2>${esc(J.name)}</h2>
         <div class="kpis"><div class="kpi"><b>${total ? pct(filled / total) : '–'}</b><span>of scores entered</span></div><div class="kpi"><b>${doneTeams}/${J.teams.length}</b><span>teams fully scored</span></div></div></div>
       <div class="pills" aria-label="Progress by member">${memberPills}</div>
-      <div class="tscroll"><table><thead><tr><th>Rank</th><th class="l">Team</th>${J.criteria.map(c => `<th>${esc(c.name)}</th>`).join('')}<th>Average</th>${hasFav(J) ? '<th>Favourite</th>' : ''}<th class="l">Progress</th></tr></thead><tbody>
+      <div class="tscroll"><table><thead><tr><th>Rank</th><th class="l">Team</th>${J.criteria.map(c => `<th>${esc(c.name)}</th>`).join('')}<th>Average</th>${hasFav(J) ? '<th>❤️ Favourite</th>' : ''}<th class="l">Progress</th></tr></thead><tbody>
       ${stats.map(s => `<tr class="click" data-act="open-team" data-j="${esc(J.id)}" data-id="${esc(s.t.id)}">
         <td>${s.rank ? `<span class="rank ${s.rank === 1 ? 'r1' : ''}">${s.rank}</span>` : '<span class="muted">–</span>'}</td>
         <td class="l"><b>${esc(s.t.name)}</b></td>
@@ -704,7 +704,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     if (ui.ovJury === 'all') {
       const stats = rankList(cfg.juries.flatMap(J => J.teams.map(t => teamStat(J, t))));
       body = `<section class="card stack"><div class="row between"><h2>Overall ranking</h2><span class="muted small">All juries combined, on the same ${scale().min} to ${scale().max} scale</span></div>
-        <div class="tscroll"><table><thead><tr><th>Rank</th><th class="l">Team</th><th class="l">Jury</th><th>Average</th>${cfg.juries.some(hasFav) ? '<th>Favourite</th>' : ''}<th class="l">Progress</th></tr></thead><tbody>
+        <div class="tscroll"><table><thead><tr><th>Rank</th><th class="l">Team</th><th class="l">Jury</th><th>Average</th>${cfg.juries.some(hasFav) ? '<th>❤️ Favourite</th>' : ''}<th class="l">Progress</th></tr></thead><tbody>
         ${stats.map(s => `<tr class="click" data-act="open-team" data-j="${esc(s.J.id)}" data-id="${esc(s.t.id)}"><td>${s.rank ? `<span class="rank ${s.rank === 1 ? 'r1' : ''}">${s.rank}</span>` : '<span class="muted">–</span>'}</td>
           <td class="l"><b>${esc(s.t.name)}</b></td><td class="l muted">${esc(s.J.name)}</td>
           <td class="avg">${fmt(s.avg)}</td>${cfg.juries.some(hasFav) ? `<td class="avg">${fmt(s.favAvg)}</td>` : ''}
