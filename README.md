@@ -5,9 +5,15 @@ Les notes sont stockées dans le Google Sheet **JURY_ASSESSMENT** via un script 
 
 - `index.html` : la page, un seul fichier autonome, servie par Apps Script lui-même.
 - `Code.gs` : le serveur Google Apps Script, déployé avec `clasp`.
-- `config.gs` : l'ID du tableur. **Non versionné** (dépôt public) — à créer en local avec
-  `const SHEET_ID = '<id du tableur>';`
+- `config.gs` : l'ID du tableur (`SHEET_ID`), versionné pour qu'un clone puisse déployer sans réglage.
+- `.clasp.json` : le `scriptId` du script autonome, versionné pour la même raison.
 - `appsscript.json` : le manifeste ; il fixe déjà « Exécuter en tant que : moi » et « Qui a accès : tout le monde ».
+
+⚠️ **Le dépôt est public.** Ces identifiants ne donnent aucun accès par eux-mêmes : c'est Drive qui
+gouverne. Mais ils rendent le tableur trouvable, donc il ne doit **pas** être partagé « toute personne
+disposant du lien » en même temps — sinon toutes les notes deviennent lisibles par n'importe qui.
+L'app n'a pas besoin de ce partage : le script tourne avec le compte de sa propriétaire et ouvre le
+tableur par son ID, les jurés ne touchent jamais à Drive.
 
 ## Mise en route
 
