@@ -791,7 +791,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     renderMenu(); renderSync();
     if (mode === 'loading') return;
     $('#ev-title').textContent = cfg?.title || 'Jury scoring';
-    $('#ev-sub').textContent = cfg ? cfg.juries.map(j => `${j.name} · ${j.members.length} members · ${j.teams.length} teams`).join('  /  ') : 'Not set up';
+    $('#ev-sub').textContent = cfg ? cfg.juries.map(j => `${j.name} · ${j.members.length}/${j.seats || j.members.length} jury members · ${j.teams.length} groups`).join('  /  ') : 'Not set up';
     const a = document.activeElement, keep = a && a.id && a.closest('#app') ? { id: a.id, s: a.selectionStart, e: a.selectionEnd, v: a.value } : null;
     let html = mode === 'local' ? '<div class="banner">Local preview: scores are neither shared nor kept. Open the published page to score together.</div>'
       : (mode === 'shared' && !gotScores && syncFail && !cfg) ? '<div class="banner">Cannot reach the scoring server. Retrying automatically every 10 s.</div>' : '';
