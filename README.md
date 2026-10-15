@@ -3,32 +3,34 @@
 Page web (en anglais) de notation des présentations d'équipes par les jurés, sur téléphone.
 Les notes sont stockées dans le Google Sheet **JURY_ASSESSMENT** via un script Apps Script.
 
-- `index.html` : la page, un seul fichier autonome, servie par **GitHub Pages**.
-- `Code.gs` : le serveur Google Apps Script, lié au tableur et déployé avec `clasp`.
+- `index.html` : la page, un seul fichier autonome, servie par Apps Script lui-même.
+- `Code.gs` : le serveur Google Apps Script, déployé avec `clasp`.
+- `config.gs` : l'ID du tableur. **Non versionné** (dépôt public) — à créer en local avec
+  `const SHEET_ID = '<id du tableur>';`
 - `appsscript.json` : le manifeste ; il fixe déjà « Exécuter en tant que : moi » et « Qui a accès : tout le monde ».
 
 ## Mise en route
 
-Le script est **lié** au tableur JURY_ASSESSMENT (Extensions → Apps Script) et se déploie en ligne de commande :
-
 ```bash
-clasp push                                 # envoie Code.gs, index.html, appsscript.json
+clasp push                                 # Code.gs, config.gs, index.html, appsscript.json
 clasp update-deployment <deploymentId>     # nouvelle version ; l'URL /exec ne change pas
 ```
 
-`.clasp.json` n'est pas versionné, il contient les ID du script et du tableur. Le recréer avec
-`clasp create-script --parentId <id du tableur>`, ou le demander à l'équipe.
+L'URL `/exec` sert **la page et les données** : rien à héberger ailleurs, et aucune connexion Google
+pour les jurés. `doGet()` sans paramètre renvoie `index.html` en y réécrivant `API_URL` avec sa propre
+URL ; `?action=state` renvoie les données.
 
-### Pourquoi la page n'est pas servie par Apps Script
+### Pourquoi un script autonome et pas un script lié
 
-`doGet()` sait servir `index.html` lui-même, ce qui est pratique pour tester, mais une page HTML servie
-par Apps Script passe par le routage Drive : il échoue avec **« Impossible d'ouvrir le fichier pour le
-moment »** pour tout visiteur connecté à plusieurs comptes Google. Les jurés ouvrent donc la page sur
-GitHub Pages, et seules les **données** viennent d'Apps Script via `fetch`, qui n'est pas concerné par ce
-routage. Résultat : aucune connexion Google n'est nécessaire, ni pour ouvrir la page, ni pour noter.
+Le tableur vit dans un **Drive partagé**. Un script *lié* à un fichier de Drive partagé fait vérifier par
+Google l'appartenance à ce Drive pour chaque visiteur **connecté** à un compte Google : la page échoue
+alors avec « Impossible d'ouvrir le fichier pour le moment », alors qu'elle s'ouvre normalement en
+navigation privée. Le script est donc **autonome**, dans My Drive, et ouvre le tableur par son ID — voir
+`ss()` dans `Code.gs`.
 
-`API_URL`, dans `index.html`, pointe sur l'URL `/exec` du déploiement. Quand c'est Apps Script qui sert
-la page, `doGet()` réécrit cette ligne avec sa propre URL.
+Contrepartie : n'ayant pas l'accès implicite d'un script lié, il doit être autorisé **une fois** à la main.
+Ouvrir le script dans le navigateur, lancer n'importe quelle fonction, accepter l'autorisation. Sans ça,
+toute requête renvoie « Accès refusé — Une autorisation est nécessaire ».
 
 ## Utilisation
 
