@@ -332,7 +332,6 @@ function joinJury(juryId, rawName) {
   const free = J.seatRows.find(x => !x.name);
   if (!free) return { ok: false, error: 'jury_full', seats: J.seats };
   const sh = doc().getSheetByName(J.sheet);
-  wipeSeat(J, free); // a freed seat must not hand its history to whoever sits down next
   // One call for every group row of the seat: 12 setValue() in a row is the kind
   // of cost that makes the lock overflow when a whole jury signs in at once.
   sh.getRangeList(free.rows.map(r => 'B' + r)).setValue(nm);
@@ -341,6 +340,12 @@ function joinJury(juryId, rawName) {
 
 /**
  * Empties a seat: its APP_NOTES rows and its criteria cells in the jury tab.
+ *
+ * NOT called when a seat is claimed any more. Doing that destroyed real scores
+ * during the event: a name cleared from column B frees the seat, the next person
+ * to take it wiped the previous holder's work. Losing live scores is far worse
+ * than a new holder seeing stale ones, which the organiser can clear by hand.
+ * Kept for a future explicit "reset this seat" action.
  *
  * Scores are keyed by seat, not by name, so without this the next occupant of a
  * seat inherits the previous one's scores -- which is exactly what happens when
