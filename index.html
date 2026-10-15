@@ -558,9 +558,9 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       <h2>Which jury are you on?</h2>
       <div class="who">${cfg.juries.map(J => {
         const free = J.free == null ? null : J.free;
-        const sub = free == null ? '' : (free > 0 ? `${free} of ${J.seats} seats left` : 'full');
+        const sub = free == null ? '' : (free > 0 ? `${free} of ${J.seats} seats left` : 'full \u2014 tap if you are already on it');
         const wait = login.busyId === J.id;
-        return `<button data-act="login-jury" data-id="${esc(J.id)}" class="${wait ? 'loading' : ''}" ${wait ? 'aria-busy="true"' : ''} ${login.busy || free === 0 ? 'disabled' : ''}>${esc(J.name)}${sub ? `<span class="muted small" style="display:block;font:500 13px var(--font-body)">${esc(sub)}</span>` : ''}</button>`;
+        return `<button data-act="login-jury" data-id="${esc(J.id)}" class="${wait ? 'loading' : ''}" ${wait ? 'aria-busy="true"' : ''} ${login.busy ? 'disabled' : ''}>${esc(J.name)}${sub ? `<span class="muted small" style="display:block;font:500 13px var(--font-body)">${esc(sub)}</span>` : ''}</button>`;
       }).join('')}</div>
       ${login.busy ? '<p class="muted small" style="margin:0">Taking your seat…</p>' : ''}
       ${login.error ? `<p class="err" role="alert">${esc(login.error)}</p>` : ''}
@@ -617,7 +617,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       poll();
     } catch (err) {
       const c = err && err.code;
-      login.error = c === 'jury_full' ? 'This jury is full: every seat is taken. Check with the organiser.'
+      login.error = c === 'jury_full' ? 'This jury is full and no seat carries your first name. Check the jury, or ask the organiser.'
         : c === 'busy' ? 'Several people are signing in at once. Tap your jury again.'
         : c === 'no_name' ? 'Enter your first name.'
         : c === 'name_too_long' ? 'That first name is too long.'
