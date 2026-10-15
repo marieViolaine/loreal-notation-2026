@@ -232,10 +232,35 @@ function joinJury(juryId, rawName) {
   const free = J.seatRows.find(x => !x.name);
   if (!free) return { ok: false, error: 'jury_full', seats: J.seats };
   const sh = doc().getSheetByName(J.sheet);
+  wipeSeat(J, free); // a freed seat must not hand its history to whoever sits down next
   // One call for every group row of the seat: 12 setValue() in a row is the kind
   // of cost that makes the lock overflow when a whole jury signs in at once.
   sh.getRangeList(free.rows.map(r => 'B' + r)).setValue(nm);
   return { ok: true, jury: J.id, member: { id: free.id, name: nm }, reused: false };
+}
+
+/**
+ * Empties a seat: its APP_NOTES rows and its criteria cells in the jury tab.
+ *
+ * Scores are keyed by seat, not by name, so without this the next occupant of a
+ * seat inherits the previous one's scores -- which is exactly what happens when
+ * column B is cleared to start over.
+ */
+function wipeSeat(J, seat) {
+  const prefix = J.id + '__' + seat.id + '__';
+  const sh = notesSheet();
+  const n = sh.getLastRow() - 1;
+  if (n > 0) {
+    const ids = sh.getRange(2, 1, n, 1).getValues();
+    for (let i = ids.length - 1; i >= 0; i--) { // bottom-up: deleting shifts the rows below
+      if (String(ids[i][0] || '').indexOf(prefix) === 0) sh.deleteRow(i + 2);
+    }
+  }
+  if (!J.criteria.length || !seat.rows.length) return;
+  const cols = J.criteria.map(c => c.col);
+  const first = Math.min.apply(null, cols), last = Math.max.apply(null, cols);
+  const js = doc().getSheetByName(J.sheet);
+  if (js) seat.rows.forEach(r => js.getRange(r, first, 1, last - first + 1).clearContent());
 }
 
 // ---------- scores ----------

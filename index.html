@@ -277,7 +277,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     get(k, d) { try { const v = localStorage.getItem('nj.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem('nj.' + k, JSON.stringify(v)); } catch {} }
   };
-  const ui = Object.assign({ tab: 'noter', juryId: null, memberId: null, teamId: null, ovJury: null, tJury: null, tTeam: null, jJury: null, jMember: null, prov: false, admin: false, adminKey: null }, store.get('ui', {}));
+  const ui = Object.assign({ tab: 'noter', juryId: null, memberId: null, teamId: null, memberName: null, ovJury: null, tJury: null, tTeam: null, jJury: null, jMember: null, prov: false, admin: false, adminKey: null }, store.get('ui', {}));
   const saveUi = () => store.set('ui', ui);
   pending = store.get('pending', {}) || {};
   const savePending = () => store.set('pending', pending);
@@ -583,7 +583,12 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
 
   function viewNoter() {
     const found = ui.memberId ? findMember(ui.memberId) : null;
-    if (!found) { ui.memberId = null; return viewLogin(); }
+    if (!found) { ui.memberId = null; ui.memberName = null; return viewLogin(); }
+    // The seat is remembered on this phone, so check it is still ours: clearing
+    // column B frees it, and somebody else may now be sitting there.
+    if (ui.memberName && norm(found.m.name) !== norm(ui.memberName)) {
+      ui.memberId = null; ui.memberName = null; ui.teamId = null; return viewLogin();
+    }
     const { J, m: M } = found; ui.juryId = J.id;
     const head = `<div class="row between">
       <div class="stack" style="gap:2px"><span class="eyebrow">Personal grid · ${esc(J.name)}</span><h2>${esc(M.name)}</h2></div>
@@ -824,9 +829,9 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       case 'login-jury': doJoin(el.dataset.id); break;
       case 'login-back': Object.assign(login, { step: 'name', jury: null, member: null, error: '', busy: false }); render(); break;
       case 'login-group':
-        ui.memberId = login.member.id; ui.juryId = login.jury; ui.teamId = el.dataset.id;
+        ui.memberId = login.member.id; ui.memberName = login.member.name; ui.juryId = login.jury; ui.teamId = el.dataset.id;
         resetLogin(); render(); window.scrollTo(0, 0); break;
-      case 'logout': ui.memberId = null; ui.teamId = null; resetLogin(); render(); window.scrollTo(0, 0); break;
+      case 'logout': ui.memberId = null; ui.memberName = null; ui.teamId = null; resetLogin(); render(); window.scrollTo(0, 0); break;
       case 'pick-team': ui.teamId = el.dataset.id; render(); if (el.dataset.top) window.scrollTo({ top: 0 }); break;
       case 'score': {
         const M = J.members.find(m => m.id === ui.memberId), T = J.teams.find(t => t.id === ui.teamId);
