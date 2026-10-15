@@ -136,6 +136,11 @@ label.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); fon
 .who button { padding: 16px; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); cursor: pointer; font: 600 17px var(--font-display); text-align: left; color: var(--ink); }
 .who button:active { background: var(--lime); }
 .who button:hover { border-color: var(--accent); }
+.loading { position: relative; pointer-events: none; opacity: .75; padding-right: 34px !important; }
+.loading::after { content: ""; position: absolute; right: 12px; top: 50%; width: 14px; height: 14px; margin-top: -7px;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .loading::after { animation: spin 2s linear infinite; } }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
 .chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px 6px 8px; min-height: 36px; cursor: pointer; font-weight: 700; display: inline-flex; gap: 6px; align-items: center; font-variant-numeric: tabular-nums; }
 .chip .dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line); }
@@ -296,7 +301,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
   const TEAM_LETTERS = 'ABCDEFGHIJKL'.split(''); // 12 teams, A to L
   const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
   const firstName = s => norm(s).split(' ')[0];
-  const login = { step: 'name', name: '', jury: null, member: null, error: '', busy: false };
+  const login = { step: 'name', name: '', jury: null, member: null, error: '', busy: false, busyId: null };
   const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
   const wavg = pairs => { let s = 0, w = 0; for (const p of pairs) { s += p.v * p.w; w += p.w; } return w > 0 ? s / w : null; };
   const weight = c => (isNum(+c.weight) && +c.weight > 0) ? +c.weight : 1;
@@ -503,7 +508,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     return `<select id="${id}" aria-label="Jury">${cfg.juries.map(j => `<option value="${esc(j.id)}" ${j.id === cur ? 'selected' : ''}>${esc(j.name)}</option>`).join('')}</select>`;
   }
 
-  function resetLogin() { Object.assign(login, { step: 'name', name: '', jury: null, member: null, error: '', busy: false }); }
+  function resetLogin() { Object.assign(login, { step: 'name', name: '', jury: null, member: null, error: '', busy: false, busyId: null }); }
 
   function findMember(id) {
     for (const J of cfg.juries) { const m = J.members.find(x => x.id === id); if (m) return { J, m }; }
@@ -526,7 +531,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       <p class="muted" style="margin:0">You pick your jury next. This phone stays signed in until you switch jury member.</p>
       <form id="login-form" class="row" autocomplete="off">
         <input type="text" id="login-name" value="${esc(login.name || '')}" placeholder="Your first name" aria-label="Your first name" autocapitalize="words" spellcheck="false" style="flex:1 1 180px;font-size:17px;padding:12px 14px">
-        <button class="btn primary" type="submit" style="padding:12px 18px;flex:1 1 auto">Continue</button>
+        <button class="btn primary${login.busy ? ' loading' : ''}" type="submit" ${login.busy ? 'aria-busy="true"' : ''} style="padding:12px 18px;flex:1 1 auto">Continue</button>
       </form>
       <div id="login-err">${login.error ? `<p class="err" role="alert">${esc(login.error)}</p>` : ''}</div>
     </section>`;
@@ -539,7 +544,8 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       <div class="who">${cfg.juries.map(J => {
         const free = J.free == null ? null : J.free;
         const sub = free == null ? '' : (free > 0 ? `${free} of ${J.seats} seats left` : 'full');
-        return `<button data-act="login-jury" data-id="${esc(J.id)}" ${login.busy || free === 0 ? 'disabled' : ''}>${esc(J.name)}${sub ? `<span class="muted small" style="display:block;font:500 13px var(--font-body)">${esc(sub)}</span>` : ''}</button>`;
+        const wait = login.busyId === J.id;
+        return `<button data-act="login-jury" data-id="${esc(J.id)}" class="${wait ? 'loading' : ''}" ${wait ? 'aria-busy="true"' : ''} ${login.busy || free === 0 ? 'disabled' : ''}>${esc(J.name)}${sub ? `<span class="muted small" style="display:block;font:500 13px var(--font-body)">${esc(sub)}</span>` : ''}</button>`;
       }).join('')}</div>
       ${login.busy ? '<p class="muted small" style="margin:0">Taking your seat…</p>' : ''}
       ${login.error ? `<p class="err" role="alert">${esc(login.error)}</p>` : ''}
@@ -564,7 +570,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
   // gets its seat again instead of consuming a new one.
   async function doJoin(juryId) {
     if (login.busy) return;
-    login.busy = true; login.error = ''; render();
+    login.busy = true; login.busyId = juryId; login.error = ''; render();
     try {
       const r = await api({ action: 'join', jury: juryId, name: login.name });
       login.jury = r.jury; login.member = r.member; login.step = 'group';
@@ -580,7 +586,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
         : c === 'no_name' ? 'Enter your first name.'
         : c === 'name_too_long' ? 'That first name is too long.'
         : 'Could not reach the server. Tap your jury again.';
-    } finally { login.busy = false; render(); }
+    } finally { login.busy = false; login.busyId = null; render(); }
   }
 
   function viewNoter() {
@@ -828,7 +834,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       case 'use-template': if (ui.admin) saveConfig(template()); break;
       case 'pick-member': ui.memberId = el.dataset.id; ui.teamId = null; resetLogin(); render(); window.scrollTo(0, 0); break;
       case 'login-jury': doJoin(el.dataset.id); break;
-      case 'login-back': Object.assign(login, { step: 'name', jury: null, member: null, error: '', busy: false }); render(); break;
+      case 'login-back': Object.assign(login, { step: 'name', jury: null, member: null, error: '', busy: false, busyId: null }); render(); break;
       case 'login-group':
         ui.memberId = login.member.id; ui.memberName = login.member.name; ui.juryId = login.jury; ui.teamId = el.dataset.id;
         resetLogin(); render(); window.scrollTo(0, 0); break;
@@ -902,7 +908,9 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     e.preventDefault();
     const v = $('#login-name').value;
     login.name = v; login.error = '';
-    const key = await isAdminPw(v);
+    login.busy = true; render();
+    let key = null;
+    try { key = await isAdminPw(v); } finally { login.busy = false; }
     if (key) {
       ui.admin = true; ui.adminKey = key; resetLogin(); draft = null; draftDirty = false;
       ui.tab = cfg ? 'reglages' : 'noter';
