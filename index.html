@@ -177,7 +177,6 @@ tfoot td { font-weight: 700; border-bottom: 0; border-top: 2px solid var(--ink);
 .bar { display: inline-block; width: 70px; height: 6px; border-radius: 3px; background: var(--line); vertical-align: middle; margin-right: 6px; overflow: hidden; }
 @media (max-width: 560px) { .bar { width: 44px; } }
 .bar i { display: block; height: 100%; background: var(--ok); }
-.prov { color: var(--muted); font-style: italic; font-weight: 600; }
 .heat { border-radius: 6px; font-weight: 700; }
 
 .pills { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -277,7 +276,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     get(k, d) { try { const v = localStorage.getItem('nj.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem('nj.' + k, JSON.stringify(v)); } catch {} }
   };
-  const ui = Object.assign({ tab: 'noter', juryId: null, memberId: null, teamId: null, memberName: null, ovJury: null, tJury: null, tTeam: null, jJury: null, jMember: null, prov: false, admin: false, adminKey: null }, store.get('ui', {}));
+  const ui = Object.assign({ tab: 'noter', juryId: null, memberId: null, teamId: null, memberName: null, ovJury: null, tJury: null, tTeam: null, jJury: null, jMember: null, admin: false, adminKey: null }, store.get('ui', {}));
   const saveUi = () => store.set('ui', ui);
   pending = store.get('pending', {}) || {};
   const savePending = () => store.set('pending', pending);
@@ -349,7 +348,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const vals = e.values || {};
     const pairs = J.criteria.filter(c => isNum(vals[c.id])).map(c => ({ v: vals[c.id], w: weight(c) }));
     const complete = J.criteria.length > 0 && pairs.length === J.criteria.length;
-    return { m, vals, comment: e.comment || '', filled: pairs.length, complete, avg: complete ? wavg(pairs) : null };
+    return { m, vals, comment: e.comment || '', filled: pairs.length, complete, avg: pairs.length ? wavg(pairs) : null };
   }
   function teamStat(J, t) {
     const ms = J.members.map(m => memberStat(J, m, t));
@@ -359,10 +358,13 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const critAvg = {};
     J.criteria.forEach(c => { critAvg[c.id] = mean(ms.map(x => x.vals[c.id]).filter(isNum)); });
     const provisional = wavg(J.criteria.filter(c => critAvg[c.id] != null).map(c => ({ v: critAvg[c.id], w: weight(c) })));
-    return { t, J, ms, total, filled, complete, ratio: total ? filled / total : 0, critAvg, avg: complete ? provisional : null, provisional };
+    // Always the live mean of the scores received. Withholding it until every
+    // signed-in member had scored made the views show nothing at all: three people
+    // who sign in without scoring used to blank out every team.
+    return { t, J, ms, total, filled, complete, ratio: total ? filled / total : 0, critAvg, avg: provisional };
   }
-  function rankList(stats, useProv) {
-    const key = s => s.complete ? s.avg : (useProv ? s.provisional : null);
+  function rankList(stats) {
+    const key = s => s.avg;
     const sorted = [...stats].sort((a, b) => {
       const ka = key(a), kb = key(b);
       if (ka == null && kb == null) return b.ratio - a.ratio;
@@ -616,7 +618,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       <div>${crits}</div>
       <label class="field" for="${cmtId}">Comment for the team (optional)
         <textarea id="${cmtId}" data-act="comment" placeholder="Strengths, areas for improvement…" ${closed ? 'disabled' : ''}>${esc(ms.comment)}</textarea></label>
-      <div class="avgline"><div><span class="eyebrow">My average for ${esc(T.name)}</span><div class="big">${ms.complete ? fmt(ms.avg) : '–'} <small>/ ${max}</small></div></div></div>
+      <div class="avgline"><div><span class="eyebrow">My average for ${esc(T.name)}</span><div class="big">${ms.avg != null ? fmt(ms.avg) : '–'} <small>/ ${max}</small></div></div></div>
     </section>`;
     const table = `<section class="card stack"><div class="row between"><h3>My scores</h3><span class="muted small">${doneCount}/${J.teams.length} teams scored</span></div>
       <div class="tscroll"><table><thead><tr><th class="l">Team</th>${J.criteria.map(c => `<th>${esc(c.name)}</th>`).join('')}<th>Average</th></tr></thead><tbody>
@@ -626,7 +628,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
   }
 
   function juryTable(J) {
-    const stats = rankList(J.teams.map(t => teamStat(J, t)), ui.prov);
+    const stats = rankList(J.teams.map(t => teamStat(J, t)));
     const filled = stats.reduce((a, s) => a + s.filled, 0), total = stats.reduce((a, s) => a + s.total, 0);
     const doneTeams = stats.filter(s => s.complete).length;
     const memberPills = J.members.map(m => {
@@ -642,7 +644,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
         <td>${s.rank ? `<span class="rank ${s.rank === 1 ? 'r1' : ''}">${s.rank}</span>` : '<span class="muted">–</span>'}</td>
         <td class="l"><b>${esc(s.t.name)}</b></td>
         ${J.criteria.map(c => `<td>${fmt(s.critAvg[c.id])}</td>`).join('')}
-        <td class="avg">${s.complete ? fmt(s.avg) : (ui.prov && s.provisional != null ? `<span class="prov">${fmt(s.provisional)}</span>` : '')}</td>
+        <td class="avg">${fmt(s.avg)}</td>
         <td class="l"><span class="bar"><i style="width:${Math.round(s.ratio * 100)}%"></i></span><span class="small muted">${pct(s.ratio)}</span></td></tr>`).join('')}
       </tbody></table></div></section>`;
   }
@@ -654,17 +656,16 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       ${cfg.juries.length > 1 ? `<button data-act="ov" data-id="both" aria-pressed="${ui.ovJury === 'both'}">All juries</button>` : ''}
       ${opts.map(([id, n]) => `<button data-act="ov" data-id="${esc(id)}" aria-pressed="${ui.ovJury === id}">${esc(n)}</button>`).join('')}</div>`;
     const tools = `<div class="row between">${seg}
-      <div class="row"><label class="row small" for="prov"><input type="checkbox" id="prov" ${ui.prov ? 'checked' : ''}> Show provisional averages</label>
-      <button class="btn ghost" data-act="export">Export CSV</button></div></div>
-      <p class="muted small" style="margin:0">A team's average appears once every signed-in jury member has scored all of its criteria — so it also moves when somebody signs in later. ${cfg.juries.map(J => `${esc(J.name)}: ${J.members.length}/${J.seats || J.members.length} seats signed in`).join(' · ')}. Provisional averages, in italics, use the scores entered so far.</p>`;
+      <div class="row"><button class="btn ghost" data-act="export">Export CSV</button></div></div>
+      <p class="muted small" style="margin:0">Every average is the live mean of the scores received so far, so a team scored by one member sits in the same ranking as a team scored by all of them — read it with the Progress column. ${cfg.juries.map(J => `${esc(J.name)}: ${J.members.length}/${J.seats || J.members.length} seats signed in`).join(' · ')}.</p>`;
     let body = '';
     if (ui.ovJury === 'all') {
-      const stats = rankList(cfg.juries.flatMap(J => J.teams.map(t => teamStat(J, t))), ui.prov);
+      const stats = rankList(cfg.juries.flatMap(J => J.teams.map(t => teamStat(J, t))));
       body = `<section class="card stack"><div class="row between"><h2>Overall ranking</h2><span class="muted small">All juries combined, on the same ${scale().min} to ${scale().max} scale</span></div>
         <div class="tscroll"><table><thead><tr><th>Rank</th><th class="l">Team</th><th class="l">Jury</th><th>Average</th><th class="l">Progress</th></tr></thead><tbody>
         ${stats.map(s => `<tr class="click" data-act="open-team" data-j="${esc(s.J.id)}" data-id="${esc(s.t.id)}"><td>${s.rank ? `<span class="rank ${s.rank === 1 ? 'r1' : ''}">${s.rank}</span>` : '<span class="muted">–</span>'}</td>
           <td class="l"><b>${esc(s.t.name)}</b></td><td class="l muted">${esc(s.J.name)}</td>
-          <td class="avg">${s.complete ? fmt(s.avg) : (ui.prov && s.provisional != null ? `<span class="prov">${fmt(s.provisional)}</span>` : '')}</td>
+          <td class="avg">${fmt(s.avg)}</td>
           <td class="l"><span class="bar"><i style="width:${Math.round(s.ratio * 100)}%"></i></span><span class="small muted">${pct(s.ratio)}</span></td></tr>`).join('')}
         </tbody></table></div>
         ${cfg.juries.some(J => J.criteria.map(c => c.name).join('|') !== cfg.juries[0].criteria.map(c => c.name).join('|')) ? '<p class="banner" style="margin:0">The juries do not use the same criteria: compare this ranking with care.</p>' : ''}</section>`;
@@ -678,18 +679,18 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const J = juryOf(ui.tJury); ui.tJury = J.id;
     if (!J.teams.length) return `<div class="card empty"><h3>No teams for this jury</h3></div>`;
     const T = J.teams.find(t => t.id === ui.tTeam) || J.teams[0]; ui.tTeam = T.id;
-    const all = rankList(J.teams.map(t => teamStat(J, t)), false);
+    const all = rankList(J.teams.map(t => teamStat(J, t)));
     const s = all.find(x => x.t.id === T.id);
     const max = scale().max;
     const chips = J.teams.map(t => `<button class="chip" data-act="t-team" data-id="${esc(t.id)}" aria-current="${t.id === T.id}">${esc(t.name)}</button>`).join('');
     const grid = `<div class="tscroll"><table><thead><tr><th class="l">Jury member</th>${J.criteria.map(c => `<th>${esc(c.name)}${weight(c) !== 1 ? ` <span class="coef">×${weight(c)}</span>` : ''}</th>`).join('')}<th>Average</th></tr></thead><tbody>
       ${s.ms.map(x => `<tr><td class="l"><b>${esc(x.m.name)}</b></td>${J.criteria.map(c => `<td><span class="heat" style="display:inline-block;min-width:36px;padding:4px 6px;${heat(x.vals[c.id])}">${isNum(x.vals[c.id]) ? x.vals[c.id] : '<span class="muted">·</span>'}</span></td>`).join('')}<td class="avg">${fmt(x.avg)}</td></tr>`).join('')}
-      </tbody><tfoot><tr><td class="l">Average per criterion</td>${J.criteria.map(c => `<td>${fmt(s.critAvg[c.id])}</td>`).join('')}<td class="avg">${s.complete ? fmt(s.avg) : ''}</td></tr></tfoot></table></div>`;
+      </tbody><tfoot><tr><td class="l">Average per criterion</td>${J.criteria.map(c => `<td>${fmt(s.critAvg[c.id])}</td>`).join('')}<td class="avg">${fmt(s.avg)}</td></tr></tfoot></table></div>`;
     const comments = s.ms.filter(x => x.comment.trim());
     return `<div class="row between">${cfg.juries.length > 1 ? jurySelect('t-jury', J.id) : ''}<div class="chips" aria-label="Teams">${chips}</div></div>
       <section class="card stack">
         <div class="row between"><div class="teamhead"><span class="eyebrow">Summary · ${esc(J.name)}</span><h2>Team ${esc(T.name)}</h2></div>
-          <div class="kpis"><div class="kpi"><b>${s.complete ? fmt(s.avg) + ' / ' + max : '–'}</b><span>overall average</span></div>
+          <div class="kpis"><div class="kpi"><b>${s.avg != null ? fmt(s.avg) + ' / ' + max : '–'}</b><span>overall average</span></div>
           <div class="kpi"><b>${s.rank ? ordinal(s.rank) + ' / ' + J.teams.length : '–'}</b><span>rank in the jury</span></div>
           <div class="kpi"><b>${s.filled}/${s.total}</b><span>scores received</span></div></div></div>
         ${!s.complete ? `<p class="banner" style="margin:0">Scoring in progress: the average and rank will appear once all ${s.total} scores are entered.</p>` : ''}
@@ -919,7 +920,6 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     else if (el.id === 'pick-member') { ui.memberId = el.value || null; ui.teamId = null; render(); }
     else if (el.id === 't-jury') { ui.tJury = el.value; ui.tTeam = null; render(); }
     else if (el.id === 'j-jury') { ui.jJury = el.value; ui.jMember = null; render(); }
-    else if (el.id === 'prov') { ui.prov = el.checked; render(); }
   });
 
   async function exportCsv() {
@@ -931,7 +931,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       J.teams.forEach(t => {
         const s = teamStat(J, t);
         s.ms.forEach(x => rows.push([t.name, x.m.name, ...J.criteria.map(c => isNum(x.vals[c.id]) ? String(x.vals[c.id]) : ''), fmt(x.avg), x.comment].map(q).join(',')));
-        rows.push([t.name, 'TEAM AVERAGE', ...J.criteria.map(c => fmt(s.critAvg[c.id])), s.complete ? fmt(s.avg) : '', ''].map(q).join(','));
+        rows.push([t.name, 'TEAM AVERAGE', ...J.criteria.map(c => fmt(s.critAvg[c.id])), fmt(s.avg), ''].map(q).join(','));
       });
       rows.push('');
     });
