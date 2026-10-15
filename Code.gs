@@ -154,7 +154,7 @@ function readJuries() {
     // (and "Group 10" would land before "Group 2").
     const teams = groups.map(b => ({ id: b.id, name: b.name }));
 
-    const members = [], rows = {}, seatRows = [];
+    const members = [], rows = {}, seatRows = [], cells = {};
     for (let s = 0; s < seats; s++) {
       const mid = 'm-s' + (s + 1);
       let who = '';
@@ -165,11 +165,22 @@ function readJuries() {
         mine.push({ team: b.id, row: idx + 1 });
         if (!who) { const v = String(data[idx][1] || '').trim(); if (v) who = v; }
       });
-      mine.forEach(x => { rows[x.team + '|' + mid] = x.row; });
+      mine.forEach(x => {
+        rows[x.team + '|' + mid] = x.row;
+        // What the tab itself holds. The spreadsheet is the source of truth, so a
+        // score typed straight into the grid has to show up in the app.
+        const vals = {};
+        criteria.forEach(c => {
+          const raw = String(data[x.row - 1][c.col - 1] == null ? '' : data[x.row - 1][c.col - 1]).trim().replace(',', '.');
+          const n = parseFloat(raw);
+          if (raw !== '' && isFinite(n)) vals[c.id] = n;
+        });
+        if (Object.keys(vals).length) cells[mid + '|' + x.team] = vals;
+      });
       seatRows.push({ id: mid, seat: s, name: who, rows: mine.map(x => x.row) });
       if (who) members.push({ id: mid, name: who, seat: s });
     }
-    out.push({ id, name: name.trim(), sheet: name, members, teams, criteria, rows, seats, seatRows });
+    out.push({ id, name: name.trim(), sheet: name, members, teams, criteria, rows, cells, seats, seatRows });
   });
   return out;
 }
@@ -245,7 +256,8 @@ function getState() {
   const cache = CacheService.getScriptCache();
   const hit = cache.get('state');
   if (hit) return JSON.parse(hit);
-  const cfg = buildConfig(readJuries());
+  const juries = readJuries();
+  const cfg = buildConfig(juries);
   const sh = notesSheet();
   const scores = {};
   const n = sh.getLastRow() - 1;
@@ -257,6 +269,18 @@ function getState() {
       scores[r[0]] = { jury: r[1], member: r[2], team: r[3], values, comment: r[5] || '', updatedAt: r[6] ? String(r[6]) : '' };
     });
   }
+  // The jury tabs win over APP_NOTES for the scores themselves: APP_NOTES keeps the
+  // comments, the timestamps and anything the tabs no longer carry, but a cell typed
+  // or cleared by hand in the tab is what the app shows.
+  juries.forEach(J => J.members.forEach(m => J.teams.forEach(t => {
+    const key = J.id + '__' + m.id + '__' + t.id;
+    const vals = (J.cells || {})[m.id + '|' + t.id];
+    const prev = scores[key];
+    if (vals) scores[key] = { jury: J.id, member: m.id, team: t.id, values: vals,
+      comment: prev ? prev.comment : '', updatedAt: prev ? prev.updatedAt : '' };
+    else if (prev) delete scores[key];
+  })));
+
   const state = { ok: true, cfg, scores, customPassword: !!PropertiesService.getScriptProperties().getProperty('ADMIN_HASH'), ts: new Date().toISOString() };
   try { cache.put('state', JSON.stringify(state), 4); } catch (err) {}
   return state;

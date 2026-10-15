@@ -731,7 +731,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
           <div class="kpis"><div class="kpi"><b>${s.avg != null ? fmt(s.avg) + ' / ' + max : '–'}</b><span>overall average</span></div>
           <div class="kpi"><b>${s.rank ? ordinal(s.rank) + ' / ' + J.teams.length : '–'}</b><span>rank in the jury</span></div>
           <div class="kpi"><b>${s.filled}/${s.total}</b><span>scores received</span></div></div></div>
-        ${!s.complete ? `<p class="banner" style="margin:0">Scoring in progress: the average and rank will appear once all ${s.total} scores are entered.</p>` : ''}
+        ${!s.complete ? `<p class="banner" style="margin:0">Scoring in progress: the average and rank above cover the ${s.filled} score${s.filled === 1 ? '' : 's'} received so far, out of ${s.total}.</p>` : ''}
         ${grid}
       </section>
       <section class="card stack"><h3>Jury comments</h3>
