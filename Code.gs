@@ -53,8 +53,12 @@ function doGet(e) {
  * live behind the same /exec URL.
  */
 function page() {
+  // getUrl() returns the domain-scoped form (/a/<domain>/macros/...) inside a Workspace
+  // account; strip it so jurors signed into any other Google account are not sent to an
+  // account chooser.
+  const url = ScriptApp.getService().getUrl().replace(/\/a\/[^/]+\/macros\//, '/macros/');
   const src = HtmlService.createHtmlOutputFromFile('index').getContent();
-  const out = src.replace(/const\s+API_URL\s*=\s*''\s*;/, 'const API_URL = ' + JSON.stringify(ScriptApp.getService().getUrl()) + ';');
+  const out = src.replace(/const\s+API_URL\s*=\s*''\s*;/, 'const API_URL = ' + JSON.stringify(url) + ';');
   if (out === src) throw new Error('API_URL placeholder not found in index.html');
   return HtmlService.createHtmlOutput(out)
     .setTitle('Jury scoring')
