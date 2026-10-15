@@ -24,3 +24,24 @@ clasp update-deployment "$DEPLOYMENT_ID"
 printf 'state : '
 curl -sL -o /dev/null -w '%{http_code}\n' "${URL}?action=state&_=$(date +%s)"
 echo "$URL"
+
+# Exactly one versioned deployment must exist: each extra one is a second public
+# URL serving an older copy of the app into the same spreadsheet. They do appear
+# on their own, so check every time.
+#
+# `clasp list-deployments` lags behind both deployments and deletions, so the
+# listing alone produces false alarms. Only a fetch is authoritative: a deleted
+# deployment answers 404. So list, then probe.
+LIVE=0
+for ID in $(clasp list-deployments 2>/dev/null | sed -n 's/^- \([^ ]*\) @[0-9].*/\1/p'); do
+  CODE=$(curl -sL -o /dev/null -w '%{http_code}' "https://script.google.com/macros/s/${ID}/exec?_=$(date +%s)")
+  [ "$CODE" = "404" ] && continue
+  LIVE=$((LIVE + 1))
+  [ "$ID" = "$DEPLOYMENT_ID" ] || echo "INTRUS vivant ($CODE) : $ID" >&2
+done
+if [ "$LIVE" -gt 1 ]; then
+  echo "ATTENTION : $LIVE deploiements publics vivants, il n'en faut qu'un." >&2
+  echo "Supprimer chaque intrus : clasp delete-deployment <id>" >&2
+  exit 1
+fi
+echo "deploiements publics vivants : $LIVE"

@@ -20,6 +20,12 @@ le déploiement existant, dont l'identifiant y est écrit en dur. Ne jamais lanc
 `clasp create-deployment` sur ce projet : ça fabrique un nouveau `deploymentId`, donc une nouvelle
 URL, et tous les liens distribués cessent de fonctionner.
 
+`deploy.sh` vérifie aussi qu'il n'existe **qu'un seul** déploiement public vivant, et sort en erreur
+sinon. Des déploiements parasites apparaissent tout seuls, chacun avec sa propre URL servant une
+version plus ancienne de l'app dans le **même** tableur : un juré qui reçoit la mauvaise URL voit une
+app qui marche à moitié, sans que personne s'en aperçoive. Le contrôle sonde chaque URL plutôt que de
+croire `clasp list-deployments`, qui est en retard sur les déploiements comme sur les suppressions.
+
 Après un correctif, Google continue de servir sa page d'erreur **en cache** pendant un moment :
 une vérification faite dans la seconde peut signaler une panne déjà réparée. `deploy.sh` interroge
 le serveur avec un paramètre anti-cache pour éviter ce faux négatif.
