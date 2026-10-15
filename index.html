@@ -294,7 +294,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const isNum = v => typeof v === 'number' && isFinite(v);
   const fmt = n => n == null ? '' : n.toFixed(2);
-  const pct = x => Math.round(x * 100) + '%';
+  const pct = x => (x >= 1 ? 100 : Math.min(99, Math.round(x * 100))) + '%'; // never show a full bar on an incomplete grid
   const ordinal = n => n + ((n % 100 >= 11 && n % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
   const uid = p => p + Math.random().toString(36).slice(2, 8);
   const sid = (j, m, t) => `${j}__${m}__${t}`;
@@ -359,14 +359,26 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
   }
   function teamStat(J, t) {
     const ms = J.members.map(m => memberStat(J, m, t));
-    const total = J.members.length * J.criteria.length;
+    // Denominator is the jury's SEATS, not who happens to be signed in: otherwise a
+    // team scored by 2 of 6 jurors reads 100%, and progress goes BACKWARDS when a
+    // third signs in without a single score being removed.
+    const total = (J.seats || J.members.length) * J.criteria.length;
     const filled = ms.reduce((a, x) => a + x.filled, 0);
     const complete = total > 0 && filled === total;
     const critAvg = {};
     J.criteria.forEach(c => { critAvg[c.id] = mean(ms.map(x => x.vals[c.id]).filter(isNum)); });
-    const provisional = wavg(J.criteria.filter(c => critAvg[c.id] != null).map(c => ({ v: critAvg[c.id], w: weight(c) })));
-    // Same weighting, but only over the criteria flagged Vue_coup_coeur.
-    const favAvg = wavg(J.criteria.filter(c => c.fav && critAvg[c.id] != null).map(c => ({ v: critAvg[c.id], w: weight(c) })));
+    // Every mark counts once, weighted by its criterion. Averaging the per-criterion
+    // means instead let a criterion scored by one member weigh as much as one scored
+    // by six, so a single mark could swing a team by a quarter of the scale.
+    const pairs = [], favPairs = [];
+    ms.forEach(x => J.criteria.forEach(c => {
+      if (!isNum(x.vals[c.id])) return;
+      const pair = { v: x.vals[c.id], w: weight(c) };
+      pairs.push(pair);
+      if (c.fav) favPairs.push(pair);
+    }));
+    const provisional = wavg(pairs);
+    const favAvg = wavg(favPairs);
     // Always the live mean of the scores received. Withholding it until every
     // signed-in member had scored made the views show nothing at all: three people
     // who sign in without scoring used to blank out every team.
@@ -594,6 +606,10 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     try {
       const r = await api({ action: 'join', jury: juryId, name: login.name });
       login.jury = r.jury; login.member = r.member; login.step = 'group';
+      // Reusing a seat is how a juror returns on another phone -- but it is also what
+      // happens to a second person with the same first name, who would then overwrite
+      // the first one's scores. Say so rather than merge in silence.
+      if (r.reused) toast('Welcome back, ' + r.member.name + ' \u2014 you already had a seat here. If you are a different person with the same first name, add your initial.');
       // cfg only catches up on the next poll, and viewNoter needs the member to
       // exist or it bounces straight back to sign-in.
       const J = juryOf(r.jury);
@@ -661,8 +677,9 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const filled = stats.reduce((a, s) => a + s.filled, 0), total = stats.reduce((a, s) => a + s.total, 0);
     const doneTeams = stats.filter(s => s.complete).length;
     const memberPills = J.members.map(m => {
-      const n = J.teams.filter(t => memberStat(J, m, t).complete).length;
-      return `<span class="pill ${n === J.teams.length ? 'done' : ''}">${esc(m.name)} · ${n}/${J.teams.length}</span>`;
+      const given = J.teams.reduce((a, t) => a + memberStat(J, m, t).filled, 0);
+      const due = J.teams.length * J.criteria.length;
+      return `<span class="pill ${given === due ? 'done' : ''}">${esc(m.name)} · ${given}/${due}</span>`;
     }).join('');
     return `<section class="card stack">
       <div class="row between"><h2>${esc(J.name)}</h2>
@@ -688,7 +705,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       : `“${esc(p.weight)}” is not a weight above 0`;
     const show = bad.slice(0, 3).map(p => `row ${p.row}: ${why(p)}`).join('; ');
     const rest = bad.length > 3 ? `, and ${bad.length - 3} more` : '';
-    return `<div class="banner">PONDERATION-JURY: ${bad.length} row${bad.length > 1 ? 's' : ''} ignored, so ${bad.length > 1 ? 'those criteria keep' : 'that criterion keeps'} a weight of 1 — ${show}${rest}.</div>`;
+    return `<div class="banner">PONDERATION-JURY: ${bad.length} row${bad.length > 1 ? 's' : ''} ignored, so ${bad.length > 1 ? 'those criteria fall back to their configured weight' : 'that criterion falls back to its configured weight'} — ${show}${rest}.</div>`;
   }
 
   // Ranked on the flagged criteria alone, under the overall ranking. Teams with
@@ -774,7 +791,9 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const total = J.teams.length * J.criteria.length;
     const filled = rows.reduce((a, r) => a + r.st.filled, 0);
     const done = rows.filter(r => r.st.complete).length;
-    const avg = mean(rows.filter(r => r.st.avg != null).map(r => r.st.avg));
+    const givenPairs = [];
+    rows.forEach(r => J.criteria.forEach(c => { if (isNum(r.st.vals[c.id])) givenPairs.push({ v: r.st.vals[c.id], w: weight(c) }); }));
+    const avg = wavg(givenPairs); // the average they actually gave, not an average of averages
     const chips = J.members.map(x => `<button class="chip" data-act="j-member" data-id="${esc(x.id)}" aria-current="${x.id === m.id}">${esc(x.name)}</button>`).join('');
     const grid = `<div class="tscroll"><table><thead><tr><th class="l">Team</th>${J.criteria.map(c => `<th>${esc(c.name)}${weight(c) !== 1 ? ` <span class="coef">\u00d7${weight(c)}</span>` : ''}</th>`).join('')}<th>Average</th></tr></thead><tbody>
       ${rows.map(r => `<tr><td class="l"><b>${esc(r.t.name)}</b></td>${J.criteria.map(c => `<td><span class="heat" style="display:inline-block;min-width:36px;padding:4px 6px;${heat(r.st.vals[c.id])}">${isNum(r.st.vals[c.id]) ? r.st.vals[c.id] : '<span class="muted">\u00b7</span>'}</span></td>`).join('')}<td class="avg">${fmt(r.st.avg)}</td></tr>`).join('')}
@@ -993,11 +1012,13 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     const rows = [];
     cfg.juries.forEach(J => {
       rows.push([J.name].map(q).join(','));
-      rows.push(['Team', 'Jury member', ...J.criteria.map(c => c.name), 'Average', 'Comment'].map(q).join(','));
-      J.teams.forEach(t => {
-        const s = teamStat(J, t);
-        s.ms.forEach(x => rows.push([t.name, x.m.name, ...J.criteria.map(c => isNum(x.vals[c.id]) ? String(x.vals[c.id]) : ''), fmt(x.avg), x.comment].map(q).join(',')));
-        rows.push([t.name, 'TEAM AVERAGE', ...J.criteria.map(c => fmt(s.critAvg[c.id])), fmt(s.avg), ''].map(q).join(','));
+      rows.push(['Criterion weight', '', ...J.criteria.map(c => String(weight(c)) + (c.fav ? ' \u2764' : ''))].map(q).join(','));
+      rows.push(['Rank', 'Team', 'Jury member', ...J.criteria.map(c => c.name), 'Average', 'Favourite', 'Scores', 'Comment'].map(q).join(','));
+      rankList(J.teams.map(t => teamStat(J, t))).forEach(s => {
+        s.ms.forEach(x => rows.push(['', s.t.name, x.m.name, ...J.criteria.map(c => isNum(x.vals[c.id]) ? String(x.vals[c.id]) : ''),
+          fmt(x.avg), '', x.filled + '/' + J.criteria.length, x.comment].map(q).join(',')));
+        rows.push([s.rank || '', s.t.name, 'TEAM AVERAGE', ...J.criteria.map(c => fmt(s.critAvg[c.id])),
+          fmt(s.avg), fmt(s.favAvg), s.filled + '/' + s.total, ''].map(q).join(','));
       });
       rows.push('');
     });

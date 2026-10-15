@@ -146,11 +146,11 @@ function readJuries() {
       if (!v) continue;
       const k = norm(v);
       const last = groups.length ? groups[groups.length - 1] : null;
-      if (last && last.key === k) { last.count++; continue; } // same run = same group block
+      if (last && last.key === k) { last.rows.push(r + 1); continue; } // same run = same group block
       let tid = 't-' + slug(v); while (usedT[tid]) tid += '_'; usedT[tid] = 1;
-      groups.push({ key: k, id: tid, name: v, firstIdx: r, count: 1 });
+      groups.push({ key: k, id: tid, name: v, rows: [r + 1] });
     }
-    const seats = groups.reduce((a, b) => Math.max(a, b.count), 0);
+    const seats = groups.reduce((a, b) => Math.max(a, b.rows.length), 0);
 
     // Sheet order, not alphabetical: the groups are whatever column A says, so any
     // sort we invent here would reorder them against the organiser's own layout
@@ -163,10 +163,10 @@ function readJuries() {
       let who = '';
       const mine = [];
       groups.forEach(b => {
-        if (s >= b.count) return;
-        const idx = b.firstIdx + s;
-        mine.push({ team: b.id, row: idx + 1 });
-        if (!who) { const v = String(data[idx][1] || '').trim(); if (v) who = v; }
+        if (s >= b.rows.length) return; // a shorter block simply has no row for this seat
+        const row = b.rows[s];
+        mine.push({ team: b.id, row: row });
+        if (!who) { const v = String(data[row - 1][1] || '').trim(); if (v) who = v; }
       });
       mine.forEach(x => {
         rows[x.team + '|' + mid] = x.row;
@@ -216,9 +216,13 @@ function readWeights(juries) {
   data.forEach((r, i) => {
     const cname = String(r[0] || '').trim();
     const jname = String(r[1] || '').trim();
-    const raw = String(r[2] || '').trim().replace(',', '.'); // a French locale shows 0,25
+    const raw = String(r[2] || '').trim();
+    // getDisplayValues returns what the cell SHOWS, and parseFloat happily takes a
+    // numeric prefix: "25%" became 25, "1/4" became 1, "1 000" became 1. Demand a
+    // clean number, decimal comma allowed, and report anything else.
+    const num = raw.replace(',', '.');
+    const w = /^[0-9]+(\.[0-9]+)?$/.test(num) ? parseFloat(num) : NaN;
     if (!cname && !jname && !raw) return; // blank filler row
-    const w = parseFloat(raw);
     const J = matchJury(juries, jname);
     const c = J ? J.criteria.filter(x => norm(x.name) === norm(cname))[0] : null;
     if (!J || !c) {
@@ -287,9 +291,20 @@ function getState() {
     const key = J.id + '__' + m.id + '__' + t.id;
     const vals = (J.cells || {})[m.id + '|' + t.id];
     const prev = scores[key];
-    if (vals) scores[key] = { jury: J.id, member: m.id, team: t.id, values: vals,
-      comment: prev ? prev.comment : '', updatedAt: prev ? prev.updatedAt : '' };
-    else if (prev) delete scores[key];
+    if (vals) {
+      scores[key] = { jury: J.id, member: m.id, team: t.id, values: vals,
+        comment: prev ? prev.comment : '', updatedAt: prev ? prev.updatedAt : '' };
+      return;
+    }
+    if (!prev) return;
+    // The tab holds no value here. Only treat that as "cleared by hand" when the tab
+    // COULD have held one: a jury whose headers broke has no criteria at all, and a
+    // seat with no row in this group has nowhere to be written. Deleting in those
+    // cases wipes scores the spreadsheet never had a chance to store.
+    if (!J.criteria.length || !J.rows[t.id + '|' + m.id]) return;
+    // A comment lives only in APP_NOTES, so it must survive an empty grid row.
+    if (prev.comment) { scores[key] = { jury: J.id, member: m.id, team: t.id, values: {}, comment: prev.comment, updatedAt: prev.updatedAt }; return; }
+    delete scores[key];
   })));
 
   const state = { ok: true, cfg, scores, customPassword: !!PropertiesService.getScriptProperties().getProperty('ADMIN_HASH'), ts: new Date().toISOString() };
@@ -362,13 +377,20 @@ function leaveJury(juryId, memberId) {
   const seat = J.seatRows.find(x => x.id === memberId);
   if (!seat) return { ok: false, error: 'unknown_seat' };
   if (!seat.name) return { ok: true, already: true };
+  // A row on its own is not a score: a comment creates one with empty values, and
+  // refusing on it stranded the seat for good. Check the values, and check the tab
+  // too, since a score typed straight into the grid never reaches APP_NOTES.
+  if (Object.keys(J.cells || {}).some(k => k.indexOf(seat.id + '|') === 0)) return { ok: false, error: 'has_scores' };
   const prefix = J.id + '__' + seat.id + '__';
   const sh = notesSheet();
   const n = sh.getLastRow() - 1;
   if (n > 0) {
-    const ids = sh.getRange(2, 1, n, 1).getValues();
-    for (let i = 0; i < ids.length; i++) {
-      if (String(ids[i][0] || '').indexOf(prefix) === 0) return { ok: false, error: 'has_scores' };
+    const rowsN = sh.getRange(2, 1, n, 5).getValues();
+    for (let i = 0; i < rowsN.length; i++) {
+      if (String(rowsN[i][0] || '').indexOf(prefix) !== 0) continue;
+      let v = {};
+      try { v = JSON.parse(rowsN[i][4] || '{}'); } catch (err) {}
+      if (Object.keys(v).length) return { ok: false, error: 'has_scores' };
     }
   }
   const js = doc().getSheetByName(J.sheet);
