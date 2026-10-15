@@ -12,9 +12,17 @@ Les notes sont stockées dans le Google Sheet **JURY_ASSESSMENT** via un script 
 ## Mise en route
 
 ```bash
-clasp push                                 # Code.gs, config.gs, index.html, appsscript.json
-clasp update-deployment <deploymentId>     # nouvelle version ; l'URL /exec ne change pas
+./deploy.sh      # push + nouvelle version sur LE déploiement, et vérifie que ça répond
 ```
+
+**L'URL publique ne doit jamais changer** : les jurés l'ont. `deploy.sh` ne fait que mettre à jour
+le déploiement existant, dont l'identifiant y est écrit en dur. Ne jamais lancer
+`clasp create-deployment` sur ce projet : ça fabrique un nouveau `deploymentId`, donc une nouvelle
+URL, et tous les liens distribués cessent de fonctionner.
+
+Après un correctif, Google continue de servir sa page d'erreur **en cache** pendant un moment :
+une vérification faite dans la seconde peut signaler une panne déjà réparée. `deploy.sh` interroge
+le serveur avec un paramètre anti-cache pour éviter ce faux négatif.
 
 L'URL `/exec` sert **la page et les données** : rien à héberger ailleurs, et aucune connexion Google
 pour les jurés. `doGet()` sans paramètre renvoie `index.html` en y réécrivant `API_URL` avec sa propre
