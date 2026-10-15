@@ -548,7 +548,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
   function loginGroup() {
     const J = juryOf(login.jury);
     if (!J.teams.length) return `<section class="card stack login"><span class="eyebrow">${esc(J.name)}</span><h2>No group to score</h2>
-      <p class="muted" style="margin:0">Column A of this tab holds no group between A and L.</p>
+      <p class="muted" style="margin:0">Column A of this tab is empty.</p>
       <div><button class="btn ghost" data-act="login-back">← Start again</button></div></section>`;
     return `<section class="card stack login">
       <span class="eyebrow">${esc(J.name)} · ${esc(login.member.name)}</span>
@@ -642,15 +642,6 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       </tbody></table></div></section>`;
   }
 
-  // A column A value outside A..L is dropped from the app. Saying so matters: one
-  // mistyped group letter silently removes a whole group from every grid, and on the
-  // day nobody would understand why a team cannot be scored.
-  function warnIgnored() {
-    const bad = (cfg.juries || []).filter(J => (J.ignored || []).length);
-    if (!bad.length) return '';
-    return `<div class="banner">${bad.map(J => `${esc(J.name)}: column A holds ${J.ignored.map(v => '“' + esc(v) + '”').join(', ')}, outside A–L, so ${J.ignored.length > 1 ? 'those groups are' : 'that group is'} not scorable.`).join(' ')}</div>`;
-  }
-
   function viewEnsemble() {
     const opts = [...cfg.juries.map(j => [j.id, j.name]), ['all', 'Overall ranking']];
     if (!opts.some(o => o[0] === ui.ovJury) && ui.ovJury !== 'both') ui.ovJury = cfg.juries.length > 1 ? 'both' : cfg.juries[0].id;
@@ -675,7 +666,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
     } else if (ui.ovJury === 'both') {
       body = cfg.juries.map(juryTable).join('');
     } else body = juryTable(juryOf(ui.ovJury));
-    return warnIgnored() + tools + body;
+    return tools + body;
   }
 
   function viewEquipe() {
@@ -750,7 +741,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
         ${!sheet && draft.juries.length > 1 ? `<button class="btn ghost danger" data-act="rm-jury" data-p="${ji}" ${dis}>Remove this jury</button>` : ''}</div>
       <div class="cols">
         <div class="stack"><h3>Members (${J.members.length})</h3>${sheet ? '<p class="muted small" style="margin:0">Spreadsheet column B, duplicates removed.</p>' : '<p class="muted small" style="margin:0">First name, then last name if needed. Each jury member signs in with their first name.</p>'}${list(ji, 'members', 'Member')}</div>
-        <div class="stack"><h3>Teams (${J.teams.length})</h3>${sheet ? '<p class="muted small" style="margin:0">Spreadsheet column A, groups A to L only.</p>' : ''}${list(ji, 'teams', 'Team')}</div>
+        <div class="stack"><h3>Teams (${J.teams.length})</h3>${sheet ? '<p class="muted small" style="margin:0">Spreadsheet column A, read as it comes.</p>' : ''}${list(ji, 'teams', 'Team')}</div>
         <div class="stack"><h3>Criteria (${J.criteria.length})</h3><p class="muted small" style="margin:0">${sheet ? 'Names: spreadsheet headers. Weight and description are set here.' : 'Defined by the jury before the presentations.'}</p>
           <div class="list">${J.criteria.map((c, i) => `<div class="critedit">
             <div class="item"><input type="text" id="f-${ji}-c-${i}" value="${esc(c.name)}" data-edit="${ji}.criteria.${i}.name" aria-label="Criterion name" ${sdis}>
@@ -768,7 +759,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
       <div class="row"><label class="row" for="f-lock"><input type="checkbox" id="f-lock" data-edit="locked" ${lock ? 'checked' : ''}> Lock settings (criteria frozen)</label>
         <label class="row" for="f-closed"><input type="checkbox" id="f-closed" data-edit="closed" ${draft.closed ? 'checked' : ''}> Close scoring</label></div>
       ${(() => { const seen = {}, dup = new Set(); draft.juries.forEach(J => J.members.forEach(m => { const f = firstName(m.name); if (!f) return; if (seen[f]) dup.add(m.name.trim().split(/\s+/)[0]); seen[f] = 1; })); return dup.size ? `<p class="banner" style="margin:0">First name shared by several jury members: ${[...dup].map(esc).join(', ')}. When signing in, they will pick their name from a list. Add the last name to tell them apart.</p>` : ''; })()}
-      ${sheet ? '<p class="banner" style="margin:0">Juries, jury members, teams and criteria come from the Google Sheet: one tab per jury (name starting with “Jury”), groups A to L in column A, jury members in column B, criteria as headers. Edit the spreadsheet and the page updates by itself within 10 to 30 seconds.</p>' : ''}
+      ${sheet ? '<p class="banner" style="margin:0">Juries, jury members, teams and criteria come from the Google Sheet: one tab per jury (name starting with “Jury”), groups in column A, jury members in column B, criteria as headers. Edit the spreadsheet and the page updates by itself within 10 to 30 seconds.</p>' : ''}
       ${nScores && !lock && !sheet ? '<p class="banner" style="margin:0">Scores have already been entered. Removing a criterion, member or team hides the matching scores.</p>' : ''}
       </section>
       <section class="card stack"><h3>Organiser access</h3>

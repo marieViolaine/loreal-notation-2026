@@ -76,7 +76,11 @@ La page s'ouvre aussi hors ligne avec les dernières données connues.
 La liste des jurys, jurés, équipes et critères est lue **à chaque actualisation** dans le tableur :
 
 - **Un jury = un onglet dont le nom commence par « Jury »** (`JURY 1`, `Jury 2`, `Jury 3 - finale`…). Ajouter un onglet de ce type ajoute un jury ; les autres onglets (`Pax 1`…) sont ignorés.
-- **Colonne A** : groupe (équipe). Uniquement les 12 groupes **A à L** (toute autre valeur est ignorée), triés par ordre alphabétique.
+- **Colonne A** : le groupe, **lu tel quel**. Chaque suite de lignes portant la même valeur est un bloc de
+  groupe, et les groupes apparaissent dans l'**ordre du tableur** (aucun tri : « Groupe 10 » resterait
+  sinon avant « Groupe 2 »). Aucune liste de lettres attendue — `A`, `N`, `Équipe rouge` conviennent.
+- **Nombre de places d'un jury** : le nombre de lignes d'un bloc de groupe. Une place, c'est la même
+  ligne dans **tous** les blocs : son titulaire note donc tous les groupes.
 - **Colonne B** : membre du jury. Valeurs distinctes, doublons et majuscules/accents ignorés.
 - **Ligne 1, colonnes C et suivantes** jusqu'à `Average` / `Moyenne` / `Completion` : les critères.
 

@@ -12,7 +12,7 @@
  *   Every tab whose name starts with "Jury" (JURY 1, Jury 2, Jury 3…) is a jury.
  *   Row 1: headers. Column A: group (team). Column B: jury member.
  *   Columns C onwards, up to "Average" / "Moyenne" / "Completion": the criteria.
- *   → Teams = distinct values of column A, limited to the 12 groups A to L (anything else is ignored);
+ *   → Groups = the runs of identical values in column A, read as they come and in sheet order;
  *     members = distinct values of column B (duplicates and case ignored); criteria = headers.
  *     Adding a "Jury N" tab or a name in the spreadsheet is enough: the page updates by itself (10 to 30 s).
  *
@@ -33,7 +33,6 @@ const NOTES_SHEET = 'APP_NOTES';
 const CONFIG_SHEET = 'APP_CONFIG';
 const WRITE_BACK = true; // also write scores into the "Jury N" tabs
 const MAX_CRIT = 10;
-const TEAMS = /^[A-L]$/i; // the 12 groups, A to L
 const DEFAULT_HASH = 'eb84789239978c5b66ad35a3d0a816b214a1144b44060af4f6be6b5a6c31c7a3'; // "organisateur"
 const DEFAULT_SETTINGS = { title: 'Team presentations', scale: { min: 1, max: 4 }, locked: false, closed: false, crit: {} };
 const HEAD = ['id', 'jury', 'member', 'team', 'values', 'comment', 'updatedAt', 'Jury', 'Member', 'Team']
@@ -136,23 +135,22 @@ function readJuries() {
     // Column A holds one run of identical letters per group: a run is a group block.
     // The Nth row of EVERY block belongs to the same jury member, so claiming a seat
     // takes that row in every group at once -- a member scores all the groups.
-    const blocks = [], ignored = [];
+    const groups = [], usedT = {};
     for (let r = 1; r < data.length; r++) {
       const v = String(data[r][0] || '').trim();
       if (!v) continue;
-      const last = blocks.length ? blocks[blocks.length - 1] : null;
-      if (last && last.raw === v) { last.count++; continue; }
-      blocks.push({ raw: v, name: v.toUpperCase(), firstIdx: r, count: 1 });
+      const k = norm(v);
+      const last = groups.length ? groups[groups.length - 1] : null;
+      if (last && last.key === k) { last.count++; continue; } // same run = same group block
+      let tid = 't-' + slug(v); while (usedT[tid]) tid += '_'; usedT[tid] = 1;
+      groups.push({ key: k, id: tid, name: v, firstIdx: r, count: 1 });
     }
-    const groups = [];
-    blocks.forEach(b => {
-      if (TEAMS.test(b.raw)) groups.push(b);
-      else if (ignored.indexOf(b.raw) < 0) ignored.push(b.raw); // outside A..L: unusable, and silent until reported
-    });
     const seats = groups.reduce((a, b) => Math.max(a, b.count), 0);
 
-    const teams = groups.map(b => ({ id: 't-' + slug(b.name), name: b.name }));
-    teams.sort((a, b) => a.name.localeCompare(b.name));
+    // Sheet order, not alphabetical: the groups are whatever column A says, so any
+    // sort we invent here would reorder them against the organiser's own layout
+    // (and "Group 10" would land before "Group 2").
+    const teams = groups.map(b => ({ id: b.id, name: b.name }));
 
     const members = [], rows = {}, seatRows = [];
     for (let s = 0; s < seats; s++) {
@@ -162,14 +160,14 @@ function readJuries() {
       groups.forEach(b => {
         if (s >= b.count) return;
         const idx = b.firstIdx + s;
-        mine.push({ team: 't-' + slug(b.name), row: idx + 1 });
+        mine.push({ team: b.id, row: idx + 1 });
         if (!who) { const v = String(data[idx][1] || '').trim(); if (v) who = v; }
       });
       mine.forEach(x => { rows[x.team + '|' + mid] = x.row; });
       seatRows.push({ id: mid, seat: s, name: who, rows: mine.map(x => x.row) });
       if (who) members.push({ id: mid, name: who, seat: s });
     }
-    out.push({ id, name: name.trim(), sheet: name, members, teams, criteria, rows, seats, seatRows, ignored });
+    out.push({ id, name: name.trim(), sheet: name, members, teams, criteria, rows, seats, seatRows });
   });
   return out;
 }
@@ -183,7 +181,7 @@ function buildConfig(juries) {
     juries: juries.map(J => ({
       id: J.id, name: J.name,
       members: J.members, teams: J.teams,
-      seats: J.seats, free: Math.max(0, J.seats - J.members.length), ignored: J.ignored,
+      seats: J.seats, free: Math.max(0, J.seats - J.members.length),
       criteria: J.criteria.map(c => {
         const o = ((st.crit || {})[J.id] || {})[c.id] || {};
         return { id: c.id, name: c.name, desc: o.desc || '', weight: +o.weight > 0 ? +o.weight : 1 };
