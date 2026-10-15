@@ -710,7 +710,7 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
   }
 
   function viewEnsemble() {
-    const opts = [...cfg.juries.map(j => [j.id, j.name]), ['all', 'Overall ranking']];
+    const opts = [...cfg.juries.map(j => [j.id, j.name]), ['all', 'Overall ranking'], ...(cfg.juries.some(hasFav) ? [['fav', '❤️ Favourite']] : [])];
     if (!opts.some(o => o[0] === ui.ovJury) && ui.ovJury !== 'both') ui.ovJury = cfg.juries.length > 1 ? 'both' : cfg.juries[0].id;
     const seg = `<div class="seg" role="group" aria-label="Jury shown">
       ${cfg.juries.length > 1 ? `<button data-act="ov" data-id="both" aria-pressed="${ui.ovJury === 'both'}">All juries</button>` : ''}
@@ -728,7 +728,9 @@ footer.foot { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); tex
           <td class="avg">${fmt(s.avg)}</td>${cfg.juries.some(hasFav) ? `<td class="avg">${fmt(s.favAvg)}</td>` : ''}
           <td class="l"><span class="bar"><i style="width:${Math.round(s.ratio * 100)}%"></i></span><span class="small muted">${pct(s.ratio)}</span></td></tr>`).join('')}
         </tbody></table></div>
-        ${cfg.juries.some(J => J.criteria.map(c => c.name).join('|') !== cfg.juries[0].criteria.map(c => c.name).join('|')) ? '<p class="banner" style="margin:0">The juries do not use the same criteria: compare this ranking with care.</p>' : ''}</section>` + favSection();
+        ${cfg.juries.some(J => J.criteria.map(c => c.name).join('|') !== cfg.juries[0].criteria.map(c => c.name).join('|')) ? '<p class="banner" style="margin:0">The juries do not use the same criteria: compare this ranking with care.</p>' : ''}</section>`;
+    } else if (ui.ovJury === 'fav') {
+      body = favSection();
     } else if (ui.ovJury === 'both') {
       body = cfg.juries.map(juryTable).join('');
     } else body = juryTable(juryOf(ui.ovJury));
